@@ -62,7 +62,7 @@ public class CreateDeploymentTest {
     final ExecuteCommandResponse resp =
         apiRule
             .createCmdRequest()
-            .partitionId(Protocol.SYSTEM_PARTITION)
+            .partitionId(1)
             .type(ValueType.DEPLOYMENT, DeploymentIntent.CREATE)
             .command()
             .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
@@ -78,7 +78,7 @@ public class CreateDeploymentTest {
     assertThat(resp.key()).isGreaterThanOrEqualTo(0L);
     assertThat(resp.position()).isGreaterThanOrEqualTo(0L);
     assertThat(resp.sourceRecordPosition()).isEqualTo(createDeploymentCommand.position());
-    assertThat(resp.partitionId()).isEqualTo(Protocol.SYSTEM_PARTITION);
+    assertThat(resp.partitionId()).isEqualTo(1);
     assertThat(resp.recordType()).isEqualTo(RecordType.EVENT);
     assertThat(resp.intent()).isEqualTo(DeploymentIntent.CREATED);
   }
@@ -326,7 +326,7 @@ public class CreateDeploymentTest {
 
   public SubscribedRecord getFirstDeploymentCreateCommand() {
     return apiRule
-        .topic(Protocol.SYSTEM_PARTITION)
+        .topic(1)
         .receiveRecords()
         .skipUntil(r -> r.valueType() == ValueType.DEPLOYMENT)
         .filter(r -> r.valueType() == ValueType.DEPLOYMENT && r.intent() == DeploymentIntent.CREATE)

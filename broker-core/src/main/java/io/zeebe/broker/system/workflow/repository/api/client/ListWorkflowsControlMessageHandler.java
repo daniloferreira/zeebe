@@ -69,9 +69,9 @@ public class ListWorkflowsControlMessageHandler extends AbstractControlMessageHa
       final ActorFuture<List<WorkflowMetadata>> future;
 
       if (!bpmnProcessId.isEmpty()) {
-        future = repository.getWorkflowsByBpmnProcessId(topicName, bpmnProcessId);
+        future = repository.getWorkflowsByBpmnProcessId(bpmnProcessId);
       } else {
-        future = repository.getWorkflowsByTopic(topicName);
+        future = repository.getWorkflows();
       }
 
       actor.runOnCompletion(

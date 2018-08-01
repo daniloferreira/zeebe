@@ -81,8 +81,7 @@ public class GetWorkflowControlMessageHandler extends AbstractControlMessageHand
           errorMessage =
               String.format("No workflow found with BPMN process id '%s'", bpmnProcessId);
         } else {
-          future =
-              repository.getWorkflowByBpmnProcessIdAndVersion(topicName, bpmnProcessId, version);
+          future = repository.getWorkflowByBpmnProcessIdAndVersion(bpmnProcessId, version);
           errorMessage =
               String.format(
                   "No workflow found with BPMN process id '%s' and version '%d'",

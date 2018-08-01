@@ -79,6 +79,11 @@ public class DeploymentManager implements Service<DeploymentManager> {
 
   private void installServices(
       final Partition partition, ServiceName<Partition> partitionServiceName) {
+
+    if (partition.getInfo().getPartitionId() != 1) {
+      return;
+    }
+
     final TypedStreamEnvironment streamEnvironment =
         new TypedStreamEnvironment(partition.getLogStream(), clientApiTransport.getOutput());
 

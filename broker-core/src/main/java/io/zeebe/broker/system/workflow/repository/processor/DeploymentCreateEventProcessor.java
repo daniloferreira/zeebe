@@ -55,15 +55,8 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
       TypedStreamWriter streamWriter) {
 
     final DeploymentRecord deploymentEvent = event.getValue();
-    final String topicName = bufferAsString(deploymentEvent.getTopicName());
 
-    if (topicExists(topicName)) {
-      accepted = readAndValidateWorkflows(deploymentEvent, topicName);
-    } else {
-      accepted = false;
-      rejectionType = RejectionType.BAD_VALUE;
-      rejectionReason = "Topic does not exist";
-    }
+    accepted = readAndValidateWorkflows(deploymentEvent);
 
     if (accepted) {
       final long key = streamWriter.getKeyGenerator().nextKey();
@@ -86,12 +79,7 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
     }
   }
 
-  private boolean topicExists(String topicName) {
-    return index.checkTopicExists(topicName);
-  }
-
-  private boolean readAndValidateWorkflows(
-      final DeploymentRecord deploymentEvent, String topicName) {
+  private boolean readAndValidateWorkflows(final DeploymentRecord deploymentEvent) {
     final StringBuilder validationErrors = new StringBuilder();
 
     boolean success = true;
@@ -114,7 +102,7 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
           if (workflow.isExecutable()) {
             final String bpmnProcessId = BufferUtil.bufferAsString(workflow.getBpmnProcessId());
             final long key = index.getNextKey();
-            final int version = index.getNextVersion(topicName, bpmnProcessId);
+            final int version = index.getNextVersion(bpmnProcessId);
 
             deploymentEvent
                 .deployedWorkflows()

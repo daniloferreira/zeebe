@@ -63,8 +63,7 @@ public class FetchWorkflowRequestHandler {
             workflowRepositoryService.getLatestWorkflowByBpmnProcessId(topicName, bpmnProcessId);
       } else {
         future =
-            workflowRepositoryService.getWorkflowByBpmnProcessIdAndVersion(
-                topicName, bpmnProcessId, version);
+            workflowRepositoryService.getWorkflowByBpmnProcessIdAndVersion(bpmnProcessId, version);
       }
     } else {
       future = workflowRepositoryService.getWorkflowByKey(workflowKey);
