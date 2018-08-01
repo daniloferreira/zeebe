@@ -26,7 +26,6 @@ import io.zeebe.broker.test.EmbeddedBrokerRule;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
-import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.ExecuteCommandResponseDecoder;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.RejectionType;
@@ -49,6 +48,7 @@ import org.junit.rules.RuleChain;
 public class CreateDeploymentTest {
   private static final WorkflowDefinition WORKFLOW =
       Bpmn.createExecutableWorkflow("process").startEvent().endEvent().done();
+  public static final int PARTITION_ID = 1;
 
   public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
@@ -88,9 +88,9 @@ public class CreateDeploymentTest {
   public void shouldReturnDeployedWorkflowDefinitions() {
     // when
     final ExecuteCommandResponse firstDeployment =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW, "wf1.bpmn");
+        apiRule.topic().deployWithResponse(WORKFLOW, "wf1.bpmn");
     final ExecuteCommandResponse secondDeployment =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW, "wf2.bpmn");
+        apiRule.topic().deployWithResponse(WORKFLOW, "wf2.bpmn");
 
     // then
     List<Map<String, Object>> deployedWorkflows =
@@ -125,7 +125,6 @@ public class CreateDeploymentTest {
         apiRule
             .topic()
             .deployWithResponse(
-                ClientApiRule.DEFAULT_TOPIC_NAME,
                 StreamUtil.read(resourceAsStream),
                 ResourceType.BPMN_XML.name(),
                 "collaboration.bpmn");
@@ -140,20 +139,6 @@ public class CreateDeploymentTest {
     assertThat(deployedWorkflows)
         .extracting(s -> s.get(WorkflowInstanceRecord.PROP_WORKFLOW_BPMN_PROCESS_ID))
         .contains("process1", "process2");
-  }
-
-  @Test
-  public void shouldRejectDeploymentIfTopicNotExists() {
-    // when
-    final ExecuteCommandResponse resp =
-        apiRule.topic().deployWithResponse("not-existing", WORKFLOW);
-
-    // then
-    assertThat(resp.key()).isEqualTo(ExecuteCommandResponseDecoder.keyNullValue());
-    assertThat(resp.recordType()).isEqualTo(RecordType.COMMAND_REJECTION);
-    assertThat(resp.intent()).isEqualTo(DeploymentIntent.CREATE);
-    assertThat(resp.rejectionType()).isEqualTo(RejectionType.BAD_VALUE);
-    assertThat(resp.rejectionReason()).isEqualTo("Topic does not exist");
   }
 
   @Test
@@ -191,10 +176,9 @@ public class CreateDeploymentTest {
     final ExecuteCommandResponse resp =
         apiRule
             .createCmdRequest()
-            .partitionId(Protocol.SYSTEM_PARTITION)
+            .partitionId(PARTITION_ID)
             .type(ValueType.DEPLOYMENT, DeploymentIntent.CREATE)
             .command()
-            .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
             .put("resources", resources)
             .done()
             .sendAndAwait();
@@ -218,10 +202,9 @@ public class CreateDeploymentTest {
     final ExecuteCommandResponse resp =
         apiRule
             .createCmdRequest()
-            .partitionId(Protocol.SYSTEM_PARTITION)
+            .partitionId(PARTITION_ID)
             .type(ValueType.DEPLOYMENT, DeploymentIntent.CREATE)
             .command()
-            .put("topicName", ClientApiRule.DEFAULT_TOPIC_NAME)
             .put("resources", Collections.emptyList())
             .done()
             .sendAndAwait();
@@ -244,10 +227,7 @@ public class CreateDeploymentTest {
         apiRule
             .topic()
             .deployWithResponse(
-                ClientApiRule.DEFAULT_TOPIC_NAME,
-                "not a workflow".getBytes(UTF_8),
-                ResourceType.BPMN_XML.name(),
-                "invalid.bpmn");
+                "not a workflow".getBytes(UTF_8), ResourceType.BPMN_XML.name(), "invalid.bpmn");
 
     // then
     assertThat(resp.key()).isEqualTo(ExecuteCommandResponseDecoder.keyNullValue());
@@ -271,10 +251,7 @@ public class CreateDeploymentTest {
         apiRule
             .topic()
             .deployWithResponse(
-                ClientApiRule.DEFAULT_TOPIC_NAME,
-                yamlWorkflow,
-                ResourceType.YAML_WORKFLOW.name(),
-                "simple-workflow.yaml");
+                yamlWorkflow, ResourceType.YAML_WORKFLOW.name(), "simple-workflow.yaml");
 
     // then
     assertThat(resp.recordType()).isEqualTo(RecordType.EVENT);
@@ -287,21 +264,19 @@ public class CreateDeploymentTest {
   }
 
   @Test
-  public void shouldAssignWorkflowVersionsPerTopic() {
+  public void shouldIncrementWorkflowVersions() {
     // given
-    apiRule.createTopic("foo", 1);
-    apiRule.createTopic("bar", 1);
 
     // when
-    final ExecuteCommandResponse d1 = apiRule.topic().deployWithResponse("foo", WORKFLOW);
-    final ExecuteCommandResponse d2 = apiRule.topic().deployWithResponse("bar", WORKFLOW);
+    final ExecuteCommandResponse d1 = apiRule.topic().deployWithResponse(WORKFLOW);
+    final ExecuteCommandResponse d2 = apiRule.topic().deployWithResponse(WORKFLOW);
 
     // then
     final Map<String, Object> workflow1 = getDeployedWorkflow(d1, 0);
     assertThat(workflow1.get("version")).isEqualTo(1L);
 
     final Map<String, Object> workflow2 = getDeployedWorkflow(d2, 0);
-    assertThat(workflow2.get("version")).isEqualTo(1L);
+    assertThat(workflow2.get("version")).isEqualTo(2L);
   }
 
   private Map<String, Object> deploymentResource(final byte[] resource, String name) {

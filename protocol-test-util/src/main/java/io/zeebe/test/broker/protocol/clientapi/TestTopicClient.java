@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
-import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.SubscriptionType;
 import io.zeebe.protocol.clientapi.ValueType;
@@ -66,7 +65,7 @@ public class TestTopicClient {
   }
 
   public long deploy(String topic, final WorkflowDefinition workflow) {
-    final ExecuteCommandResponse response = deployWithResponse(topic, workflow);
+    final ExecuteCommandResponse response = deployWithResponse(workflow);
 
     assertThat(response.recordType())
         .withFailMessage("Deployment failed: %s", response.getValue().get("errorMessage"))
@@ -76,23 +75,22 @@ public class TestTopicClient {
   }
 
   public ExecuteCommandResponse deployWithResponse(String topic, byte[] resource) {
-    return deployWithResponse(topic, resource, "BPMN_XML", "process.bpmn");
+    return deployWithResponse(resource, "BPMN_XML", "process.bpmn");
+  }
+
+  public ExecuteCommandResponse deployWithResponse(final WorkflowDefinition workflow) {
+    return deployWithResponse(workflow, "process.bpmn");
   }
 
   public ExecuteCommandResponse deployWithResponse(
-      String topic, final WorkflowDefinition workflow) {
-    return deployWithResponse(topic, workflow, "process.bpmn");
-  }
-
-  public ExecuteCommandResponse deployWithResponse(
-      String topic, final WorkflowDefinition workflow, String resourceName) {
+      final WorkflowDefinition workflow, String resourceName) {
     final byte[] resource = Bpmn.convertToString(workflow).getBytes(UTF_8);
 
-    return deployWithResponse(topic, resource, "BPMN_XML", resourceName);
+    return deployWithResponse(resource, "BPMN_XML", resourceName);
   }
 
   public ExecuteCommandResponse deployWithResponse(
-      String topic, final byte[] resource, final String resourceType, final String resourceName) {
+      final byte[] resource, final String resourceType, final String resourceName) {
     final Map<String, Object> deploymentResource = new HashMap<>();
     deploymentResource.put("resource", resource);
     deploymentResource.put("resourceType", resourceType);
@@ -100,10 +98,9 @@ public class TestTopicClient {
 
     return apiRule
         .createCmdRequest()
-        .partitionId(Protocol.SYSTEM_PARTITION)
+        .partitionId(1)
         .type(ValueType.DEPLOYMENT, DeploymentIntent.CREATE)
         .command()
-        .put("topicName", topic)
         .put(PROP_WORKFLOW_RESOURCES, Collections.singletonList(deploymentResource))
         .put("resouceType", resourceType)
         .done()

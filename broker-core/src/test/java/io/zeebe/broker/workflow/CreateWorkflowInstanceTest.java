@@ -131,12 +131,10 @@ public class CreateWorkflowInstanceTest {
   public void shouldCreateWorkflowInstanceByBpmnProcessIdAndLatestVersion() {
     // given
     testClient.deployWithResponse(
-        ClientApiRule.DEFAULT_TOPIC_NAME,
         Bpmn.createExecutableWorkflow("process").startEvent("bar").endEvent().done());
 
     final ExecuteCommandResponse deployment2 =
         testClient.deployWithResponse(
-            ClientApiRule.DEFAULT_TOPIC_NAME,
             Bpmn.createExecutableWorkflow("process").startEvent("bar").endEvent().done());
 
     // when
@@ -173,11 +171,9 @@ public class CreateWorkflowInstanceTest {
     // given
     final ExecuteCommandResponse deployment1 =
         testClient.deployWithResponse(
-            ClientApiRule.DEFAULT_TOPIC_NAME,
             Bpmn.createExecutableWorkflow("process").startEvent("foo").endEvent().done());
 
     testClient.deployWithResponse(
-        ClientApiRule.DEFAULT_TOPIC_NAME,
         Bpmn.createExecutableWorkflow("process").startEvent("bar").endEvent().done());
 
     // when
@@ -216,7 +212,6 @@ public class CreateWorkflowInstanceTest {
 
     final ExecuteCommandResponse depl =
         testClient.deployWithResponse(
-            ClientApiRule.DEFAULT_TOPIC_NAME,
             Bpmn.createExecutableWorkflow("process").startEvent("bar").endEvent().done());
 
     final long workflowKey = extractWorkflowKey(depl);
@@ -247,7 +242,6 @@ public class CreateWorkflowInstanceTest {
     // given
     final ExecuteCommandResponse depl =
         testClient.deployWithResponse(
-            ClientApiRule.DEFAULT_TOPIC_NAME,
             Bpmn.createExecutableWorkflow("process").startEvent().endEvent().done());
 
     testClient.deploy(Bpmn.createExecutableWorkflow("process").startEvent().endEvent().done());
@@ -536,7 +530,6 @@ public class CreateWorkflowInstanceTest {
         apiRule
             .topic()
             .deployWithResponse(
-                ClientApiRule.DEFAULT_TOPIC_NAME,
                 StreamUtil.read(resourceAsStream),
                 ResourceType.YAML_WORKFLOW.name(),
                 "simple-workflow.yaml");
@@ -591,7 +584,6 @@ public class CreateWorkflowInstanceTest {
         apiRule
             .topic()
             .deployWithResponse(
-                ClientApiRule.DEFAULT_TOPIC_NAME,
                 StreamUtil.read(resourceAsStream),
                 ResourceType.BPMN_XML.name(),
                 "collaboration.bpmn");

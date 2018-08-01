@@ -50,7 +50,7 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   public void shouldRequestWorkflowByKey() {
     final ExecuteCommandResponse deployment =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW, "wf.bpmn");
+        apiRule.topic().deployWithResponse(WORKFLOW, "wf.bpmn");
 
     final Map<String, Object> deployedWorkflow = getDeployedWorkflow(deployment, 0);
 
@@ -133,7 +133,7 @@ public class WorkflowRepositoryClientApiTest {
 
   @Test
   public void shouldNotGetWorkflowByExistingBpmnProcessKeyAndNonExistingVersion() {
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW);
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage(
@@ -154,8 +154,7 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   public void shouldRequestLatestWorkflowBpmnProcessId() {
     // given
-    final ExecuteCommandResponse deployment1 =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    final ExecuteCommandResponse deployment1 = apiRule.topic().deployWithResponse(WORKFLOW);
 
     final Map<String, Object> deployedWorkflow = getDeployedWorkflow(deployment1, 0);
 
@@ -180,8 +179,7 @@ public class WorkflowRepositoryClientApiTest {
 
     // and when
 
-    final ExecuteCommandResponse deployment2 =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    final ExecuteCommandResponse deployment2 = apiRule.topic().deployWithResponse(WORKFLOW);
 
     final Map<String, Object> deployedWorkflow2 = getDeployedWorkflow(deployment2, 0);
 
@@ -205,8 +203,7 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   public void shouldGetWorkflowVersionBpmnProcessId() {
     // given
-    final ExecuteCommandResponse deployment1 =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    final ExecuteCommandResponse deployment1 = apiRule.topic().deployWithResponse(WORKFLOW);
 
     final Map<String, Object> deployedWorkflow = getDeployedWorkflow(deployment1, 0);
 
@@ -231,8 +228,7 @@ public class WorkflowRepositoryClientApiTest {
 
     // and when
 
-    final ExecuteCommandResponse deployment2 =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    final ExecuteCommandResponse deployment2 = apiRule.topic().deployWithResponse(WORKFLOW);
 
     final Map<String, Object> deployedWorkflow2 = getDeployedWorkflow(deployment2, 0);
 
@@ -293,7 +289,7 @@ public class WorkflowRepositoryClientApiTest {
   @SuppressWarnings("unchecked")
   public void shouldListWorkflowByTopic() {
     final ExecuteCommandResponse deployment =
-        apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW, "wf.bpmn");
+        apiRule.topic().deployWithResponse(WORKFLOW, "wf.bpmn");
 
     final Map<String, Object> deployedWorkflow = getDeployedWorkflow(deployment, 0);
 
@@ -327,8 +323,8 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   @SuppressWarnings("unchecked")
   public void shouldListWorkflowsByTopicAndBpmnProcessId() {
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW_2);
+    apiRule.topic().deployWithResponse(WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW_2);
 
     ControlMessageResponse requestWorkflowResponse =
         apiRule
@@ -364,8 +360,8 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   @SuppressWarnings("unchecked")
   public void shouldListWorkflowsByTopicAndBpmnProcessIdNonExisting() {
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW_2);
+    apiRule.topic().deployWithResponse(WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW_2);
 
     final ControlMessageResponse requestWorkflowResponse =
         apiRule
@@ -385,9 +381,9 @@ public class WorkflowRepositoryClientApiTest {
   @Test
   @SuppressWarnings("unchecked")
   public void shouldListMultipleWorkflowsByTopic() {
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
-    apiRule.topic().deployWithResponse(ClientApiRule.DEFAULT_TOPIC_NAME, WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW);
+    apiRule.topic().deployWithResponse(WORKFLOW);
 
     final ControlMessageResponse requestWorkflowResponse =
         apiRule
