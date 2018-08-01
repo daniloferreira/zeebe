@@ -31,7 +31,6 @@ import io.zeebe.logstreams.log.BufferedLogStreamReader;
 import io.zeebe.logstreams.processor.StreamProcessorContext;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.intent.DeploymentIntent;
-import io.zeebe.protocol.intent.TopicIntent;
 import io.zeebe.servicecontainer.*;
 import io.zeebe.transport.ServerTransport;
 
@@ -105,10 +104,6 @@ public class DeploymentManager implements Service<DeploymentManager> {
                 ValueType.DEPLOYMENT,
                 DeploymentIntent.CREATE,
                 new DeploymentRejectedEventProcessor())
-            .onEvent(
-                ValueType.TOPIC,
-                TopicIntent.CREATING,
-                new DeploymentTopicCreatingEventProcessor(repositoryIndex))
             .withStateResource(repositoryIndex)
             .withListener(
                 new StreamProcessorLifecycleAware() {

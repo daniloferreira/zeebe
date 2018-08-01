@@ -20,14 +20,18 @@ package io.zeebe.broker.system.workflow.repository.processor;
 import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 
-import io.zeebe.broker.logstreams.processor.*;
-import io.zeebe.broker.system.workflow.repository.data.*;
+import io.zeebe.broker.logstreams.processor.TypedRecord;
+import io.zeebe.broker.logstreams.processor.TypedRecordProcessor;
+import io.zeebe.broker.logstreams.processor.TypedResponseWriter;
+import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
+import io.zeebe.broker.system.workflow.repository.data.DeploymentRecord;
+import io.zeebe.broker.system.workflow.repository.data.DeploymentResource;
+import io.zeebe.broker.system.workflow.repository.data.ResourceType;
 import io.zeebe.broker.system.workflow.repository.processor.state.WorkflowRepositoryIndex;
 import io.zeebe.model.bpmn.BpmnModelApi;
 import io.zeebe.model.bpmn.impl.error.InvalidModelException;
 import io.zeebe.model.bpmn.instance.Workflow;
 import io.zeebe.model.bpmn.instance.WorkflowDefinition;
-import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.intent.DeploymentIntent;
 import io.zeebe.util.buffer.BufferUtil;
 import java.io.PrintWriter;
@@ -35,16 +39,11 @@ import java.io.StringWriter;
 import java.util.Iterator;
 import org.agrona.DirectBuffer;
 
-public class DeploymentCreateEventProcessor implements TypedRecordProcessor<DeploymentRecord> {
+public class PushedDeploymentEventProcessor implements TypedRecordProcessor<DeploymentRecord> {
   private final BpmnModelApi bpmn = new BpmnModelApi();
-
   private final WorkflowRepositoryIndex index;
 
-  private boolean accepted;
-  private RejectionType rejectionType;
-  private String rejectionReason;
-
-  public DeploymentCreateEventProcessor(WorkflowRepositoryIndex index) {
+  public PushedDeploymentEventProcessor(WorkflowRepositoryIndex index) {
     this.index = index;
   }
 
@@ -56,18 +55,10 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
 
     final DeploymentRecord deploymentEvent = event.getValue();
 
-    accepted = readAndValidateWorkflows(deploymentEvent);
-
-    if (accepted) {
+    if (readAndValidateWorkflows(deploymentEvent)) {
       final long key = streamWriter.getKeyGenerator().nextKey();
 
-      // TODO get partition id's
-
-      // TODO push deployment to other partitions
-
-      // TODO wait non blocking on response of all partitions
-
-      // TODO write created event
+      // TODO send response back to partition one
 
       streamWriter.writeFollowUpEvent(
           key,
@@ -77,13 +68,7 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
               m.requestId(event.getMetadata().getRequestId())
                   .requestStreamId(event.getMetadata().getRequestStreamId()));
     } else {
-      streamWriter.writeRejection(
-          event,
-          rejectionType,
-          rejectionReason,
-          m ->
-              m.requestId(event.getMetadata().getRequestId())
-                  .requestStreamId(event.getMetadata().getRequestStreamId()));
+      throw new IllegalStateException("should never happen");
     }
   }
 
@@ -138,11 +123,6 @@ public class DeploymentCreateEventProcessor implements TypedRecordProcessor<Depl
 
         success = false;
       }
-    }
-
-    if (!success) {
-      rejectionType = RejectionType.BAD_VALUE;
-      rejectionReason = validationErrors.toString();
     }
 
     return success;
