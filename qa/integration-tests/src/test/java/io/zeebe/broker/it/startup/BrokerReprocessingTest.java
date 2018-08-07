@@ -130,12 +130,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldCreateWorkflowInstanceAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     // when
     reprocessingTrigger.accept(this);
@@ -155,12 +150,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldContinueWorkflowInstanceAtTaskAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     clientRule
         .getWorkflowClient()
@@ -190,12 +180,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldContinueWorkflowInstanceWithLockedTaskAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     clientRule
         .getWorkflowClient()
@@ -225,12 +210,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldContinueWorkflowInstanceAtSecondTaskAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW_TWO_TASKS, "two-tasks.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW_TWO_TASKS, "two-tasks.bpmn");
 
     clientRule
         .getWorkflowClient()
@@ -267,12 +247,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldDeployNewWorkflowVersionAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     // when
     reprocessingTrigger.accept(this);
@@ -415,12 +390,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldResolveIncidentAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW_INCIDENT, "incident.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW_INCIDENT, "incident.bpmn");
 
     clientRule
         .getWorkflowClient()
@@ -453,12 +423,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldResolveFailedIncidentAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW_INCIDENT, "incident.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW_INCIDENT, "incident.bpmn");
 
     clientRule
         .getWorkflowClient()
@@ -527,12 +492,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldAssignUniqueWorkflowInstanceKeyAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     final long workflowInstance1Key = startWorkflowInstance("process").getKey();
 
@@ -548,12 +508,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldAssignUniqueJobKeyAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW, "workflow.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW, "workflow.bpmn");
 
     final Supplier<JobEvent> jobCreator =
         () -> clientRule.getJobClient().newCreateCommand().jobType("foo").send().join();
@@ -572,12 +527,7 @@ public class BrokerReprocessingTest {
   @Test
   public void shouldAssignUniqueIncidentKeyAfterRestart() {
     // given
-    clientRule
-        .getWorkflowClient()
-        .newDeployCommand()
-        .addWorkflowModel(WORKFLOW_INCIDENT, "incident.bpmn")
-        .send()
-        .join();
+    deploy(WORKFLOW_INCIDENT, "incident.bpmn");
 
     startWorkflowInstance("process");
 
@@ -691,5 +641,17 @@ public class BrokerReprocessingTest {
 
     brokerRule.startBroker();
     eventRecorder.startRecordingEvents();
+  }
+
+  private void deploy(BpmnModelInstance workflowTwoTasks, String s) {
+    final DeploymentEvent deploymentEvent =
+        clientRule
+            .getWorkflowClient()
+            .newDeployCommand()
+            .addWorkflowModel(workflowTwoTasks, s)
+            .send()
+            .join();
+
+    clientRule.waitUntilDeploymentIsDone(deploymentEvent.getKey());
   }
 }

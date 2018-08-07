@@ -17,12 +17,9 @@
  */
 package io.zeebe.broker.subscription.command;
 
-import io.zeebe.broker.clustering.base.topology.NodeInfo;
-import io.zeebe.broker.clustering.base.topology.PartitionInfo;
-import io.zeebe.broker.clustering.base.topology.TopologyPartitionListener;
+import io.zeebe.broker.clustering.base.topology.TopologyPartitionListenerImpl;
 import io.zeebe.broker.system.management.topics.FetchCreatedTopicsRequest;
 import io.zeebe.broker.system.management.topics.FetchCreatedTopicsResponse;
-import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.impl.SubscriptionUtil;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
@@ -38,7 +35,7 @@ import org.agrona.DirectBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.IntArrayList;
 
-public class SubscriptionCommandSender implements TopologyPartitionListener {
+public class SubscriptionCommandSender {
 
   private final FetchCreatedTopicsRequest fetchCreatedTopicsRequest =
       new FetchCreatedTopicsRequest();
@@ -55,8 +52,7 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
 
   private final TransportMessage subscriptionMessage = new TransportMessage();
 
-  private final Int2ObjectHashMap<RemoteAddress> partitionLeaders = new Int2ObjectHashMap<>();
-  private volatile RemoteAddress systemPartitionLeader;
+  private final TopologyPartitionListenerImpl partitionListener;
 
   private final ActorControl actor;
   private final ClientTransport managementClient;
@@ -78,6 +74,8 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
     this.subscriptionClient = subscriptionClient;
     this.topicName = topicName;
     this.partitionId = partitionId;
+
+    this.partitionListener = new TopologyPartitionListenerImpl(actor);
   }
 
   public boolean openMessageSubscription(
@@ -130,13 +128,16 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   private boolean sendSubscriptipnCommand(
       final int receiverPartitionId, final BufferWriter command) {
 
-    final RemoteAddress partitionLeader = partitionLeaders.get(receiverPartitionId);
+    final Int2ObjectHashMap<SocketAddress> partitionLeaders =
+        partitionListener.getPartitionLeaders();
+    final SocketAddress partitionLeader = partitionLeaders.get(receiverPartitionId);
     if (partitionLeader == null) {
       // retry when no leader is known
       return false;
     }
 
-    subscriptionMessage.remoteAddress(partitionLeader);
+    final RemoteAddress remoteAddress = subscriptionClient.registerRemoteAddress(partitionLeader);
+    subscriptionMessage.remoteAddress(remoteAddress);
     subscriptionMessage.writer(command);
 
     return subscriptionClient.getOutput().sendMessage(subscriptionMessage);
@@ -165,10 +166,14 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   }
 
   private ActorFuture<ClientResponse> sendFetchCreatedTopicsRequest() {
+    final SocketAddress systemPartitionLeader = partitionListener.getSystemPartitionLeader();
+    final RemoteAddress remoteAddress =
+        managementClient.registerRemoteAddress(systemPartitionLeader);
+
     return managementClient
         .getOutput()
         .sendRequestWithRetry(
-            () -> systemPartitionLeader,
+            () -> remoteAddress,
             b -> !fetchCreatedTopicsResponse.tryWrap(b),
             fetchCreatedTopicsRequest,
             Duration.ofSeconds(15));
@@ -186,39 +191,7 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
             });
   }
 
-  @Override
-  public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
-
-    if (member.getLeaders().contains(partitionInfo)) {
-
-      if (partitionInfo.getPartitionId() == Protocol.SYSTEM_PARTITION) {
-        updateSystemPartitionLeader(member);
-      } else {
-        updatePartitionLeader(partitionInfo, member);
-      }
-    }
-  }
-
-  private void updateSystemPartitionLeader(NodeInfo member) {
-    final RemoteAddress currentLeader = systemPartitionLeader;
-
-    final SocketAddress managementApiAddress = member.getManagementApiAddress();
-    if (currentLeader == null || !currentLeader.getAddress().equals(managementApiAddress)) {
-      systemPartitionLeader = managementClient.registerRemoteAddress(managementApiAddress);
-    }
-  }
-
-  private void updatePartitionLeader(PartitionInfo partitionInfo, NodeInfo member) {
-    actor.submit(
-        () -> {
-          final RemoteAddress currentLeader = partitionLeaders.get(partitionInfo.getPartitionId());
-
-          final SocketAddress subscriptionApiAddress = member.getSubscriptionApiAddress();
-          if (currentLeader == null || !currentLeader.getAddress().equals(subscriptionApiAddress)) {
-            final RemoteAddress newLeader =
-                subscriptionClient.registerRemoteAddress(subscriptionApiAddress);
-            partitionLeaders.put(partitionInfo.getPartitionId(), newLeader);
-          }
-        });
+  public TopologyPartitionListenerImpl getPartitionListener() {
+    return partitionListener;
   }
 }
