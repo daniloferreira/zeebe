@@ -49,6 +49,9 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   private final OpenMessageSubscriptionCommand openMessageSubscriptionCommand =
       new OpenMessageSubscriptionCommand();
 
+  private final OpenedMessageSubscriptionCommand openedMessageSubscriptionCommand =
+      new OpenedMessageSubscriptionCommand();
+
   private final CorrelateWorkflowInstanceSubscriptionCommand
       correlateWorkflowInstanceSubscriptionCommand =
           new CorrelateWorkflowInstanceSubscriptionCommand();
@@ -99,13 +102,27 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
     openMessageSubscriptionCommand.getMessageName().wrap(messageName);
     openMessageSubscriptionCommand.getCorrelationKey().wrap(correlationKey);
 
-    return sendSubscriptipnCommand(subscriptionPartitionId, openMessageSubscriptionCommand);
+    return sendSubscriptionCommand(subscriptionPartitionId, openMessageSubscriptionCommand);
   }
 
   private int getSubscriptionPartitionId(DirectBuffer correlationKey) {
     final int hashCode = SubscriptionUtil.getSubscriptionHashCode(correlationKey);
     final int index = Math.abs(hashCode % partitionIds.size());
     return partitionIds.getInt(index);
+  }
+
+  public boolean openedMessageSubscription(
+      int workflowInstancePartitionId,
+      long workflowInstanceKey,
+      long activityInstanceKey,
+      DirectBuffer messageName) {
+
+    openedMessageSubscriptionCommand.setWorkflowInstancePartitionId(workflowInstancePartitionId);
+    openedMessageSubscriptionCommand.setWorkflowInstanceKey(workflowInstanceKey);
+    openedMessageSubscriptionCommand.setActivityInstanceKey(activityInstanceKey);
+    openedMessageSubscriptionCommand.getMessageName().wrap(messageName);
+
+    return sendSubscriptionCommand(workflowInstancePartitionId, openedMessageSubscriptionCommand);
   }
 
   public boolean correlateWorkflowInstanceSubscription(
@@ -121,13 +138,12 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
     correlateWorkflowInstanceSubscriptionCommand.setActivityInstanceKey(activityInstanceKey);
     correlateWorkflowInstanceSubscriptionCommand.getMessageName().wrap(messageName);
     correlateWorkflowInstanceSubscriptionCommand.getPayload().wrap(payload);
-    subscriptionMessage.writer(correlateWorkflowInstanceSubscriptionCommand);
 
-    return sendSubscriptipnCommand(
+    return sendSubscriptionCommand(
         workflowInstancePartitionId, correlateWorkflowInstanceSubscriptionCommand);
   }
 
-  private boolean sendSubscriptipnCommand(
+  private boolean sendSubscriptionCommand(
       final int receiverPartitionId, final BufferWriter command) {
 
     final RemoteAddress partitionLeader = partitionLeaders.get(receiverPartitionId);

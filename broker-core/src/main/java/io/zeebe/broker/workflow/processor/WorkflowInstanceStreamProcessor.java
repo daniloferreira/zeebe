@@ -18,6 +18,7 @@
 package io.zeebe.broker.workflow.processor;
 
 import static io.zeebe.broker.workflow.data.WorkflowInstanceRecord.EMPTY_PAYLOAD;
+import static io.zeebe.util.buffer.BufferUtil.bufferAsString;
 
 import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.incident.data.ErrorType;
@@ -38,6 +39,10 @@ import io.zeebe.broker.logstreams.processor.TypedStreamReader;
 import io.zeebe.broker.logstreams.processor.TypedStreamWriter;
 import io.zeebe.broker.subscription.command.SubscriptionCommandSender;
 import io.zeebe.broker.subscription.message.data.WorkflowInstanceSubscriptionRecord;
+import io.zeebe.broker.subscription.message.processor.OpenSubscriptionChecker;
+import io.zeebe.broker.subscription.message.processor.OpenWorkflowInstanceSubscriptionProcessor;
+import io.zeebe.broker.subscription.message.state.WorkflowInstanceSubscriptionDataStore;
+import io.zeebe.broker.subscription.message.state.WorkflowInstanceSubscriptionDataStore.WorkflowInstanceSubscription;
 import io.zeebe.broker.workflow.data.WorkflowInstanceRecord;
 import io.zeebe.broker.workflow.map.ActivityInstanceMap;
 import io.zeebe.broker.workflow.map.DeployedWorkflow;
@@ -68,13 +73,19 @@ import io.zeebe.transport.ClientTransport;
 import io.zeebe.util.metrics.Metric;
 import io.zeebe.util.metrics.MetricsManager;
 import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.clock.ActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
+import java.time.Duration;
 import java.util.function.Consumer;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
 public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycleAware {
+
+  public static final Duration SUBSCRIPTION_TIMEOUT = Duration.ofSeconds(10);
+  public static final Duration SUBSCRIPTION_CHECK_INTERVAL = Duration.ofSeconds(30);
+
   private static final UnsafeBuffer EMPTY_JOB_TYPE = new UnsafeBuffer("".getBytes());
 
   private Metric workflowInstanceEventCreate;
@@ -89,6 +100,8 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
 
   private TypedStreamReader streamReader;
   private SubscriptionCommandSender subscriptionCommandSender;
+  private WorkflowInstanceSubscriptionDataStore subscriptionStore =
+      new WorkflowInstanceSubscriptionDataStore();
 
   private final ClientTransport managementApiClient;
   private final ClientTransport subscriptionApiClient;
@@ -196,11 +209,16 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         .onEvent(ValueType.JOB, JobIntent.COMPLETED, new JobCompletedEventProcessor())
         .onCommand(
             ValueType.WORKFLOW_INSTANCE_SUBSCRIPTION,
+            WorkflowInstanceSubscriptionIntent.OPEN,
+            new OpenWorkflowInstanceSubscriptionProcessor(subscriptionStore))
+        .onCommand(
+            ValueType.WORKFLOW_INSTANCE_SUBSCRIPTION,
             WorkflowInstanceSubscriptionIntent.CORRELATE,
             new CorrelateWorkflowInstanceSubscription())
         .withStateResource(workflowInstanceIndex.getMap())
         .withStateResource(activityInstanceMap.getMap())
         .withStateResource(payloadCache.getMap())
+        .withStateResource(subscriptionStore)
         .withListener(payloadCache)
         .withListener(this)
         .build();
@@ -228,6 +246,11 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
             topicName,
             logStream.getPartitionId());
     topologyManager.addTopologyPartitionListener(subscriptionCommandSender);
+
+    final OpenSubscriptionChecker openSubscriptionChecker =
+        new OpenSubscriptionChecker(
+            subscriptionCommandSender, subscriptionStore, SUBSCRIPTION_TIMEOUT.toMillis());
+    actor.runAtFixedRate(SUBSCRIPTION_CHECK_INTERVAL, openSubscriptionChecker);
 
     workflowInstanceEventCreate =
         metricsManager
@@ -530,13 +553,22 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
       streamWriter.writeFollowUpEvent(
           activityInstanceKey, WorkflowInstanceIntent.CATCH_EVENT_ENTERED, workflowInstance);
 
+      final WorkflowInstanceSubscription subscription =
+          new WorkflowInstanceSubscription(
+              workflowInstance.getWorkflowInstanceKey(),
+              activityInstanceKey,
+              bufferAsString(catchEvent.getMessageName()),
+              bufferAsString(extractedCorrelationKey));
+      subscription.setSentTime(ActorClock.currentTimeMillis());
+      subscriptionStore.addSubscription(subscription);
+
       workflowInstanceIndex
           .get(workflowInstance.getWorkflowInstanceKey())
-          .setActivityInstanceKey(event.getKey())
+          .setActivityInstanceKey(activityInstanceKey)
           .write();
 
       activityInstanceMap
-          .newActivityInstance(event.getKey())
+          .newActivityInstance(activityInstanceKey)
           .setActivityId(workflowInstance.getActivityId())
           .setJobKey(-1L)
           .write();
@@ -673,14 +705,17 @@ public class WorkflowInstanceStreamProcessor implements StreamProcessorLifecycle
         final long workflowKey = workflowInstance.getWorkflowKey();
         final DeployedWorkflow workflow = workflowCache.getWorkflowByKey(workflowKey);
         if (workflow != null) {
-          writeEvents(workflow);
+          onWorkflowAvailable(workflow);
         } else {
-          fetchWorkflow(workflowKey, this::writeEvents, ctx);
+          fetchWorkflow(workflowKey, this::onWorkflowAvailable, ctx);
         }
       }
     }
 
-    private void writeEvents(final DeployedWorkflow workflow) {
+    private void onWorkflowAvailable(final DeployedWorkflow workflow) {
+      // remove subscription if pending
+      subscriptionStore.removeSubscription(subscription);
+
       final DirectBuffer activityId =
           activityInstanceMap
               .wrapActivityInstanceKey(subscription.getActivityInstanceKey())

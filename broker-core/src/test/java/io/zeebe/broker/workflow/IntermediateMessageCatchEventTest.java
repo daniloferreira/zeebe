@@ -29,9 +29,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 import io.zeebe.broker.test.EmbeddedBrokerRule;
+import io.zeebe.broker.workflow.processor.WorkflowInstanceStreamProcessor;
 import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.BpmnModelInstance;
+import io.zeebe.msgpack.spec.MsgPackHelper;
 import io.zeebe.protocol.clientapi.RecordType;
+import io.zeebe.protocol.clientapi.RejectionType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.SubscriptionUtil;
 import io.zeebe.protocol.intent.MessageSubscriptionIntent;
@@ -167,6 +170,111 @@ public class IntermediateMessageCatchEventTest {
     assertThat(subscriptions)
         .extracting(s -> s.value().get("workflowInstanceKey"))
         .contains(workflowInstanceKey1, workflowInstanceKey2);
+  }
+
+  @Test
+  public void shouldOpenWorkflowInstanceSubscription() {
+    final long workflowInstanceKey =
+        testClient.createWorkflowInstance("wf", asMsgPack("orderId", "order-123"));
+
+    final SubscribedRecord catchEventEntered =
+        testClient.receiveFirstWorkflowInstanceEvent(WorkflowInstanceIntent.CATCH_EVENT_ENTERED);
+
+    final SubscribedRecord workflowInstanceSubscription =
+        testClient
+            .receiveEvents()
+            .filter(intent(WorkflowInstanceSubscriptionIntent.OPENED))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("no workflow instance subscription event found"));
+
+    assertThat(workflowInstanceSubscription.valueType())
+        .isEqualTo(ValueType.WORKFLOW_INSTANCE_SUBSCRIPTION);
+    assertThat(workflowInstanceSubscription.recordType()).isEqualTo(RecordType.EVENT);
+    assertThat(workflowInstanceSubscription.value())
+        .containsExactly(
+            entry("workflowInstanceKey", workflowInstanceKey),
+            entry("activityInstanceKey", catchEventEntered.key()),
+            entry("messageName", "order canceled"),
+            entry("payload", MsgPackHelper.EMTPY_OBJECT));
+  }
+
+  @Test
+  public void shouldRetryToOpenMessageSubscription() {
+    // given
+    testClient.createWorkflowInstance("wf", asMsgPack("orderId", "order-123"));
+
+    testClient.receiveFirstWorkflowInstanceEvent(WorkflowInstanceIntent.CATCH_EVENT_ENTERED);
+
+    // when simulate the timeout
+    brokerRule
+        .getClock()
+        .addTime(
+            WorkflowInstanceStreamProcessor.SUBSCRIPTION_CHECK_INTERVAL.plus(
+                WorkflowInstanceStreamProcessor.SUBSCRIPTION_TIMEOUT));
+
+    // then
+    final List<SubscribedRecord> messageSubscriptionEvents =
+        testClient
+            .receiveCommands()
+            .filter(intent(MessageSubscriptionIntent.OPEN))
+            .limit(2)
+            .collect(Collectors.toList());
+
+    assertThat(messageSubscriptionEvents).hasSize(2);
+    assertThat(messageSubscriptionEvents.get(0).value())
+        .isEqualTo(messageSubscriptionEvents.get(1).value());
+  }
+
+  @Test
+  public void shouldRejectDuplicatedOpenMessageSubscriptionCommand() {
+    // given
+    testClient.createWorkflowInstance("wf", asMsgPack("orderId", "order-123"));
+
+    testClient.receiveFirstWorkflowInstanceEvent(WorkflowInstanceIntent.CATCH_EVENT_ENTERED);
+
+    // when simulate the timeout
+    brokerRule
+        .getClock()
+        .addTime(
+            WorkflowInstanceStreamProcessor.SUBSCRIPTION_CHECK_INTERVAL.plus(
+                WorkflowInstanceStreamProcessor.SUBSCRIPTION_TIMEOUT));
+
+    // then
+    final SubscribedRecord rejection =
+        testClient
+            .receiveRejections()
+            .filter(intent(MessageSubscriptionIntent.OPEN))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("no rejection found"));
+
+    assertThat(rejection.rejectionType()).isEqualTo(RejectionType.NOT_APPLICABLE);
+    assertThat(rejection.rejectionReason()).isEqualTo("subscription is already open");
+  }
+
+  @Test
+  public void shouldRejectDuplicatedOpenWorkflowInstanceSubscriptionCommand() {
+    // given
+    testClient.createWorkflowInstance("wf", asMsgPack("orderId", "order-123"));
+
+    testClient.receiveFirstWorkflowInstanceEvent(WorkflowInstanceIntent.CATCH_EVENT_ENTERED);
+
+    // when simulate the timeout
+    brokerRule
+        .getClock()
+        .addTime(
+            WorkflowInstanceStreamProcessor.SUBSCRIPTION_CHECK_INTERVAL.plus(
+                WorkflowInstanceStreamProcessor.SUBSCRIPTION_TIMEOUT));
+
+    // then
+    final SubscribedRecord rejection =
+        testClient
+            .receiveRejections()
+            .filter(intent(WorkflowInstanceSubscriptionIntent.OPEN))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("no rejection found"));
+
+    assertThat(rejection.rejectionType()).isEqualTo(RejectionType.NOT_APPLICABLE);
+    assertThat(rejection.rejectionReason()).isEqualTo("subscription is already open");
   }
 
   @Test
