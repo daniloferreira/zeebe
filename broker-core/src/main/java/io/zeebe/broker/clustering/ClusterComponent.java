@@ -81,8 +81,7 @@ public class ClusterComponent implements Component {
     final CompositeServiceBuilder baseLayerInstall =
         serviceContainer.createComposite(CLUSTERING_BASE_LAYER);
 
-    final TopologyManagerService topologyManagerService =
-        new TopologyManagerService(brokerConfig.getNetwork());
+    final TopologyManagerService topologyManagerService = new TopologyManagerService(brokerConfig);
     baseLayerInstall
         .createService(TOPOLOGY_MANAGER_SERVICE, topologyManagerService)
         .dependency(GOSSIP_SERVICE, topologyManagerService.getGossipInjector())

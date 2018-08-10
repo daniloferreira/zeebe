@@ -39,7 +39,6 @@ import io.zeebe.raft.RaftServiceNames;
 import io.zeebe.raft.state.RaftState;
 import io.zeebe.servicecontainer.ServiceName;
 import io.zeebe.test.util.TestUtil;
-import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.FileUtil;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -521,7 +520,7 @@ public class BrokerReprocessingTest {
     assertThat(raftAfterRestart.getState()).isEqualTo(RaftState.LEADER);
     assertThat(raftAfterRestart.getTerm()).isGreaterThanOrEqualTo(9);
     assertThat(raftAfterRestart.getMemberSize()).isEqualTo(0);
-    assertThat(raftAfterRestart.getVotedFor()).isEqualTo(new SocketAddress("0.0.0.0", 26503));
+    assertThat(raftAfterRestart.getVotedFor()).isEqualTo(0);
   }
 
   @Test

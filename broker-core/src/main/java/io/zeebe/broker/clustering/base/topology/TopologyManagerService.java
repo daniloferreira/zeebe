@@ -17,8 +17,7 @@
  */
 package io.zeebe.broker.clustering.base.topology;
 
-import static io.zeebe.broker.clustering.base.ClusterBaseLayerServiceNames.LOCAL_NODE;
-
+import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.broker.system.configuration.NetworkCfg;
 import io.zeebe.gossip.Gossip;
 import io.zeebe.raft.Raft;
@@ -42,13 +41,15 @@ public class TopologyManagerService implements Service<TopologyManager> {
 
   private final NodeInfo localMember;
 
-  public TopologyManagerService(NetworkCfg cfg) {
-    final SocketAddress managementApi = cfg.getManagement().toSocketAddress();
-    final SocketAddress clientApi = cfg.getClient().toSocketAddress();
-    final SocketAddress replicationApi = cfg.getReplication().toSocketAddress();
-    final SocketAddress subscriptionApi = cfg.getSubscription().toSocketAddress();
+  public TopologyManagerService(BrokerCfg cfg) {
+    final NetworkCfg network = cfg.getNetwork();
+    final SocketAddress managementApi = network.getManagement().toSocketAddress();
+    final SocketAddress clientApi = network.getClient().toSocketAddress();
+    final SocketAddress replicationApi = network.getReplication().toSocketAddress();
+    final SocketAddress subscriptionApi = network.getSubscription().toSocketAddress();
 
-    localMember = new NodeInfo(clientApi, managementApi, replicationApi, subscriptionApi);
+    localMember =
+        new NodeInfo(cfg.getNodeId(), clientApi, managementApi, replicationApi, subscriptionApi);
   }
 
   @Override
@@ -56,8 +57,6 @@ public class TopologyManagerService implements Service<TopologyManager> {
     final Gossip gossip = gossipInjector.getValue();
 
     topologyManager = new TopologyManagerImpl(gossip, localMember);
-
-    startContext.createService(LOCAL_NODE, new LocalNodeService(localMember)).install();
 
     startContext.async(startContext.getScheduler().submitActor(topologyManager));
   }

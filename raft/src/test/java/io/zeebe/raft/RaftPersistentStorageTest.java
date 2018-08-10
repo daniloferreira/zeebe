@@ -45,12 +45,12 @@ public class RaftPersistentStorageTest {
     // then
     InMemoryRaftPersistentStorage storage = raft1.getPersistentStorage();
     assertThat(storage.getTerm()).isEqualTo(1);
-    assertThat(storage.getVotedFor()).isEqualTo(raft1.getSocketAddress());
-    assertThat(storage.getMembers()).containsExactly(raft2.getSocketAddress());
+    assertThat(storage.getVotedFor()).isEqualTo(raft1.getNodeId());
+    assertThat(storage.getMembers()).containsExactly(raft2.getNodeId());
 
     storage = raft2.getPersistentStorage();
     assertThat(storage.getTerm()).isEqualTo(1);
     assertThat(storage.getVotedFor()).isEqualTo(null);
-    assertThat(storage.getMembers()).containsExactly(raft1.getSocketAddress());
+    assertThat(storage.getMembers()).containsExactly(raft1.getNodeId());
   }
 }

@@ -62,7 +62,8 @@ public class RemoteAddressManager implements Service<Object>, TopologyMemberList
   @Override
   public void onMemberAdded(final NodeInfo memberInfo, final Topology topology) {
     managementClientTransport.registerRemoteAddress(memberInfo.getManagementApiAddress());
-    replicationClientTransport.registerRemoteAddress(memberInfo.getReplicationApiAddress());
+    replicationClientTransport.registerEndpoint(
+        memberInfo.getNodeId(), memberInfo.getReplicationApiAddress());
   }
 
   @Override

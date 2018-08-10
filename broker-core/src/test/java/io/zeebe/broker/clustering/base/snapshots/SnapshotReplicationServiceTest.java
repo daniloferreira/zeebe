@@ -80,7 +80,7 @@ public class SnapshotReplicationServiceTest {
   private final FsSnapshotStorageConfiguration config = new FsSnapshotStorageConfiguration();
   private FsSnapshotStorage storage;
   private Partition partition;
-  private final NodeInfo leaderNodeInfo = createLeaderNodeInfo();
+  private final NodeInfo leaderNodeInfo = createLeaderNodeInfo(0);
 
   @Before
   public void setUp() throws Exception {
@@ -158,7 +158,7 @@ public class SnapshotReplicationServiceTest {
         .isEqualTo(ListSnapshotsRequestEncoder.TEMPLATE_ID);
 
     // when
-    final NodeInfo newLeader = createNodeInfo("0.0.0.0", 5);
+    final NodeInfo newLeader = createNodeInfo(1, "0.0.0.0", 5);
     topologyManager.setPartitionLeader(partition, newLeader);
     output.getLastRequest().respondWith(new RuntimeException("network error"));
     actorSchedulerRule.workUntilDone();
@@ -211,7 +211,7 @@ public class SnapshotReplicationServiceTest {
         .isEqualTo(ListSnapshotsRequestEncoder.TEMPLATE_ID);
 
     // when
-    final NodeInfo newLeader = createNodeInfo("0.0.0.0", 12345);
+    final NodeInfo newLeader = createNodeInfo(1, "0.0.0.0", 12345);
     topologyManager.setPartitionLeader(partition, newLeader);
     output.getLastRequest().respondWith(response);
     actorSchedulerRule.workUntilDone();
@@ -428,12 +428,13 @@ public class SnapshotReplicationServiceTest {
     return new FsSnapshotMetadata(name, position, data.length, true, checksum);
   }
 
-  private NodeInfo createLeaderNodeInfo() {
-    return createNodeInfo("0.0.0.0", 26501);
+  private NodeInfo createLeaderNodeInfo(int nodeId) {
+    return createNodeInfo(nodeId, "0.0.0.0", 26501);
   }
 
-  private NodeInfo createNodeInfo(final String host, final int port) {
+  private NodeInfo createNodeInfo(int nodeId, final String host, final int port) {
     return new NodeInfo(
+        nodeId,
         new SocketAddress(host, port),
         new SocketAddress(host, port + 1),
         new SocketAddress(host, port + 2),

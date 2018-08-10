@@ -17,10 +17,10 @@
  */
 package io.zeebe.broker.clustering.base.topology;
 
+import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.readNodeInfo;
 import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.readPartitions;
-import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.readSocketAddress;
+import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.writeNodeInfo;
 import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.writePartitions;
-import static io.zeebe.broker.clustering.base.gossip.GossipCustomEventEncoding.writeSockedAddresses;
 
 import io.zeebe.broker.Loggers;
 import io.zeebe.gossip.Gossip;
@@ -161,22 +161,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
           () -> {
             LOG.trace("Received API event from member {}.", senderCopy);
 
-            int offset = 0;
-
-            final SocketAddress managementApi = new SocketAddress();
-            offset = readSocketAddress(offset, payloadCopy, managementApi);
-
-            final SocketAddress clientApi = new SocketAddress();
-            offset = readSocketAddress(offset, payloadCopy, clientApi);
-
-            final SocketAddress replicationApi = new SocketAddress();
-            offset = readSocketAddress(offset, payloadCopy, replicationApi);
-
-            final SocketAddress subscriptionApi = new SocketAddress();
-            offset = readSocketAddress(offset, payloadCopy, subscriptionApi);
-
-            final NodeInfo newMember =
-                new NodeInfo(clientApi, managementApi, replicationApi, subscriptionApi);
+            final NodeInfo newMember = readNodeInfo(0, payloadCopy);
             final boolean memberAdded = topology.addMember(newMember);
             if (memberAdded) {
               notifyMemberAdded(newMember);
@@ -231,7 +216,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
             LOG.trace("Got API sync request");
 
             for (NodeInfo member : topology.getMembers()) {
-              final int length = writeSockedAddresses(member, writeBuffer, 0);
+              final int length = writeNodeInfo(member, writeBuffer, 0);
               request.addPayload(member.getManagementApiAddress(), writeBuffer, 0, length);
             }
 
@@ -261,7 +246,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
   private void publishLocalContactPoints() {
     final MutableDirectBuffer eventBuffer = new ExpandableArrayBuffer();
-    final int eventLength = writeSockedAddresses(topology.getLocal(), eventBuffer, 0);
+    final int eventLength = writeNodeInfo(topology.getLocal(), eventBuffer, 0);
 
     gossip.publishEvent(CONTACT_POINTS_EVENT_TYPE, eventBuffer, 0, eventLength);
   }
