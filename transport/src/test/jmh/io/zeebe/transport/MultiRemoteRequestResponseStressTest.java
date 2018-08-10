@@ -162,7 +162,7 @@ public class MultiRemoteRequestResponseStressTest {
       final SocketAddress addr2 = new SocketAddress("localhost", 51116);
 
       clientTransport =
-          Transports.newClientTransport()
+          Transports.newClientTransport("test")
               .scheduler(scheduler)
               .requestMemoryPool(new BlockingMemoryPool(ByteValue.ofMegabytes(4), 1000))
               .build();

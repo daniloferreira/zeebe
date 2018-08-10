@@ -73,7 +73,7 @@ public class ClientTransportMemoryTest {
     messageMemoryPoolSpy = spy(new NonBlockingMemoryPool(ByteValue.ofMegabytes(4)));
 
     clientTransport =
-        Transports.newClientTransport()
+        Transports.newClientTransport("test")
             .scheduler(actorSchedulerRule.get())
             .requestMemoryPool(requestMemoryPoolSpy)
             .messageMemoryPool(messageMemoryPoolSpy)

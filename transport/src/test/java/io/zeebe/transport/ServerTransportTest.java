@@ -65,7 +65,7 @@ public class ServerTransportTest {
     closeables.manage(clientReceiveBuffer);
 
     clientTransport =
-        Transports.newClientTransport()
+        Transports.newClientTransport("test")
             .messageReceiveBuffer(clientReceiveBuffer)
             .scheduler(actorSchedulerRule.get())
             .build();

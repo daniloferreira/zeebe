@@ -151,7 +151,7 @@ public class RequestResponseStressTest {
       final SocketAddress addr = new SocketAddress("localhost", 51115);
 
       clientTransport =
-          Transports.newClientTransport()
+          Transports.newClientTransport("test")
               .scheduler(scheduler)
               .requestMemoryPool(new BlockingMemoryPool(ByteValue.ofMegabytes(4), 1000))
               .build();

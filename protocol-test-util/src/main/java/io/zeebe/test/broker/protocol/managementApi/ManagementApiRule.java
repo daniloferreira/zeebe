@@ -55,7 +55,7 @@ public class ManagementApiRule extends ExternalResource {
             .build();
     scheduler.start();
 
-    transport = Transports.newClientTransport().scheduler(scheduler).build();
+    transport = Transports.newClientTransport("management").scheduler(scheduler).build();
 
     remoteAddress = transport.registerRemoteAddress(brokerAddress);
   }

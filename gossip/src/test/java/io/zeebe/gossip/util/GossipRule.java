@@ -131,7 +131,7 @@ public class GossipRule extends ExternalResource {
             .buildBuffering(serverReceiveBuffer);
 
     clientTransport =
-        Transports.newClientTransport()
+        Transports.newClientTransport(name)
             .scheduler(actorScheduler)
             .inputListener(receivedEventsCollector)
             .build();

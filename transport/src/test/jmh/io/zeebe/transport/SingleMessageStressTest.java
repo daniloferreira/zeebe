@@ -114,7 +114,7 @@ public class SingleMessageStressTest {
       final SocketAddress addr = new SocketAddress("localhost", 51115);
 
       clientTransport =
-          Transports.newClientTransport().scheduler(scheduler).inputListener(this).build();
+          Transports.newClientTransport("test").scheduler(scheduler).inputListener(this).build();
 
       serverTransport =
           Transports.newServerTransport()
