@@ -1,5 +1,7 @@
 # Broker 4
 
+nodeId = 3
+
 [network]
 portOffset = 3
 
