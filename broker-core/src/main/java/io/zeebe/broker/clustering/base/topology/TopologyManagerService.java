@@ -17,8 +17,6 @@
  */
 package io.zeebe.broker.clustering.base.topology;
 
-import io.zeebe.broker.system.configuration.BrokerCfg;
-import io.zeebe.broker.system.configuration.NetworkCfg;
 import io.zeebe.gossip.Gossip;
 import io.zeebe.raft.Raft;
 import io.zeebe.servicecontainer.Injector;
@@ -26,7 +24,6 @@ import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceGroupReference;
 import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.servicecontainer.ServiceStopContext;
-import io.zeebe.transport.SocketAddress;
 
 public class TopologyManagerService implements Service<TopologyManager> {
   private TopologyManagerImpl topologyManager;
@@ -41,15 +38,8 @@ public class TopologyManagerService implements Service<TopologyManager> {
 
   private final NodeInfo localMember;
 
-  public TopologyManagerService(BrokerCfg cfg) {
-    final NetworkCfg network = cfg.getNetwork();
-    final SocketAddress managementApi = network.getManagement().toSocketAddress();
-    final SocketAddress clientApi = network.getClient().toSocketAddress();
-    final SocketAddress replicationApi = network.getReplication().toSocketAddress();
-    final SocketAddress subscriptionApi = network.getSubscription().toSocketAddress();
-
-    localMember =
-        new NodeInfo(cfg.getNodeId(), clientApi, managementApi, replicationApi, subscriptionApi);
+  public TopologyManagerService(NodeInfo localMember) {
+    this.localMember = localMember;
   }
 
   @Override

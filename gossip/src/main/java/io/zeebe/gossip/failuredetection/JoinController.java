@@ -28,7 +28,7 @@ import io.zeebe.gossip.protocol.GossipEvent;
 import io.zeebe.gossip.protocol.GossipEventFactory;
 import io.zeebe.gossip.protocol.GossipEventSender;
 import io.zeebe.transport.ClientResponse;
-import io.zeebe.transport.SocketAddress;
+import io.zeebe.transport.RemoteAddress;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
@@ -56,7 +56,7 @@ public class JoinController {
   private final GossipEvent ackResponse;
   private final GossipEvent syncResponse;
 
-  private List<SocketAddress> contactPoints;
+  private List<RemoteAddress> contactPoints;
 
   private boolean isJoined;
   private CompletableActorFuture<Void> joinFuture;
@@ -76,7 +76,7 @@ public class JoinController {
     this.syncResponse = gossipEventFactory.createSyncResponse();
   }
 
-  public void join(List<SocketAddress> contactPoints, CompletableActorFuture<Void> future) {
+  public void join(List<RemoteAddress> contactPoints, CompletableActorFuture<Void> future) {
     if (isJoined) {
       future.completeExceptionally(new IllegalStateException("Already joined."));
     } else if (contactPoints == null || contactPoints.isEmpty()) {
@@ -97,20 +97,18 @@ public class JoinController {
 
     self.getTerm().increment();
 
-    for (SocketAddress contactPoint : contactPoints) {
-      if (!self.getAddress().equals(contactPoint)) {
-        LOG.trace("Spread JOIN event to contact point '{}'", contactPoint);
+    for (RemoteAddress contactPoint : contactPoints) {
+      LOG.trace("Spread JOIN event to contact point '{}'", contactPoint);
 
-        disseminationComponent
-            .addMembershipEvent()
-            .address(self.getAddress())
-            .type(MembershipEventType.JOIN)
-            .gossipTerm(self.getTerm());
+      disseminationComponent
+          .addMembershipEvent()
+          .memberId(self.getId())
+          .type(MembershipEventType.JOIN)
+          .gossipTerm(self.getTerm());
 
-        final ActorFuture<ClientResponse> requestFuture =
-            gossipEventSender.sendPing(contactPoint, configuration.getJoinTimeoutDuration());
-        requestFutures.add(requestFuture);
-      }
+      final ActorFuture<ClientResponse> requestFuture =
+          gossipEventSender.sendPing(contactPoint, configuration.getJoinTimeoutDuration());
+      requestFutures.add(requestFuture);
     }
 
     actor.runOnFirstCompletion(
@@ -119,8 +117,8 @@ public class JoinController {
           if (failure == null) {
             processAckResponse(response);
 
-            final SocketAddress contactPoint = new SocketAddress(ackResponse.getSender());
-            actor.submit(() -> sendSyncRequest(contactPoint));
+            actor.submit(
+                () -> sendSyncRequest(ackResponse.getSenderId(), response.getRemoteAddress()));
           } else {
             LOG.info(
                 "Failed to contact any of '{}'. Try again in {}",
@@ -138,11 +136,12 @@ public class JoinController {
     ackResponse.wrap(responseBuffer, 0, responseBuffer.capacity());
   }
 
-  private void sendSyncRequest(final SocketAddress contactPoint) {
-    LOG.trace("Send SYNC request to '{}'", contactPoint);
+  private void sendSyncRequest(final int nodeId, final RemoteAddress remoteAddress) {
+    LOG.trace("Send SYNC request to node '{}' with address '{}'", nodeId, remoteAddress);
 
     final ActorFuture<ClientResponse> requestFuture =
-        gossipEventSender.sendSyncRequest(contactPoint, configuration.getSyncTimeoutDuration());
+        gossipEventSender.sendSyncRequest(
+            nodeId, remoteAddress, configuration.getSyncTimeoutDuration());
 
     actor.runOnCompletion(
         requestFuture,
@@ -161,8 +160,8 @@ public class JoinController {
             LOG.debug("Joined cluster successfully");
           } else {
             LOG.debug(
-                "Failed to receive SYNC response from '{}'. Try again in {}",
-                contactPoint,
+                "Failed to receive SYNC response from node '{}'. Try again in {}",
+                nodeId,
                 configuration.getJoinInterval());
 
             actor.runDelayed(configuration.getJoinIntervalDuration(), this::sendJoinEvent);
@@ -188,7 +187,7 @@ public class JoinController {
 
     disseminationComponent
         .addMembershipEvent()
-        .address(self.getAddress())
+        .memberId(self.getId())
         .type(MembershipEventType.LEAVE)
         .gossipTerm(self.getTerm());
 
@@ -208,11 +207,10 @@ public class JoinController {
       final Member member = members.get(m);
 
       if (member.getStatus() == MembershipStatus.ALIVE) {
-        LOG.trace("Spread LEAVE event to '{}'", member.getAddress());
+        LOG.trace("Spread LEAVE event to node '{}'", member.getId());
 
         final ActorFuture<ClientResponse> requestFuture =
-            gossipEventSender.sendPing(
-                member.getAddress(), configuration.getLeaveTimeoutDuration());
+            gossipEventSender.sendPing(member.getId(), configuration.getLeaveTimeoutDuration());
         requestFutures.add(requestFuture);
 
         spreadCount += 1;

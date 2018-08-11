@@ -36,6 +36,7 @@ import io.zeebe.gossip.protocol.GossipEventSender;
 import io.zeebe.gossip.protocol.GossipRequestHandler;
 import io.zeebe.transport.BufferingServerTransport;
 import io.zeebe.transport.ClientTransport;
+import io.zeebe.transport.RemoteAddress;
 import io.zeebe.transport.ServerInputSubscription;
 import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.buffer.BufferUtil;
@@ -44,6 +45,7 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.agrona.DirectBuffer;
 import org.slf4j.Logger;
 
@@ -65,20 +67,22 @@ public class Gossip extends Actor implements GossipController, GossipEventPublis
   private final SyncRequestEventHandler syncRequestHandler;
 
   private final CustomEventListenerConsumer customEventListenerConsumer;
+  private final ClientTransport clientTransport;
   private final BufferingServerTransport serverTransport;
   private final GossipRequestHandler requestHandler;
   private final String gossipName;
 
   public Gossip(
-      final SocketAddress socketAddress,
+      final int nodeId,
       final BufferingServerTransport serverTransport,
       final ClientTransport clientTransport,
       final GossipConfiguration configuration) {
-    gossipName = socketAddress.toString();
+    gossipName = "gossip-" + nodeId;
+    this.clientTransport = clientTransport;
     this.serverTransport = serverTransport;
     this.configuration = configuration;
 
-    membershipList = new MembershipList(socketAddress, this::onSuspectMember);
+    membershipList = new MembershipList(nodeId, this::onSuspectMember);
     disseminationComponent = new DisseminationComponent(configuration, membershipList);
 
     customEventListenerConsumer = new CustomEventListenerConsumer();
@@ -175,13 +179,13 @@ public class Gossip extends Actor implements GossipController, GossipEventPublis
           if (member.getTerm().isEqual(suspicionTerm)) {
             LOG.info("Remove suspicious member '{}'", member.getId());
 
-            membershipList.removeMember(member.getAddress());
+            membershipList.removeMember(member.getId());
 
             LOG.trace("Spread CONFIRM event about '{}'", member.getId());
 
             disseminationComponent
                 .addMembershipEvent()
-                .address(member.getAddress())
+                .memberId(member.getId())
                 .gossipTerm(member.getTerm())
                 .type(MembershipEventType.CONFIRM);
           }
@@ -196,8 +200,13 @@ public class Gossip extends Actor implements GossipController, GossipEventPublis
   @Override
   public ActorFuture<Void> join(List<SocketAddress> contactPoints) {
     final CompletableActorFuture<Void> future = new CompletableActorFuture<>();
+    final List<RemoteAddress> remoteAddresses =
+        contactPoints
+            .stream()
+            .map(clientTransport::registerRemoteAddress)
+            .collect(Collectors.toList());
 
-    actor.call(() -> joinController.join(contactPoints, future));
+    actor.call(() -> joinController.join(remoteAddresses, future));
 
     return future;
   }
@@ -236,7 +245,7 @@ public class Gossip extends Actor implements GossipController, GossipEventPublis
 
           disseminationComponent
               .addCustomEvent()
-              .senderAddress(self.getAddress())
+              .senderId(self.getId())
               .senderGossipTerm(currentTerm)
               .type(type)
               .payload(payload, offset, length);

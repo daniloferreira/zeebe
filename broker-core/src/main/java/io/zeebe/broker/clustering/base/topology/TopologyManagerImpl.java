@@ -32,7 +32,6 @@ import io.zeebe.gossip.membership.Member;
 import io.zeebe.raft.Raft;
 import io.zeebe.raft.RaftStateListener;
 import io.zeebe.raft.state.RaftState;
-import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.LogUtil;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.Actor;
@@ -83,10 +82,6 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
     gossip.addCustomEventListener(CONTACT_POINTS_EVENT_TYPE, contactPointsChangeListener);
     gossip.addCustomEventListener(PARTITIONS_EVENT_TYPE, partitionChangeListener);
-
-    // publishing should be done before registering sync handler, since
-    // we can only handle sync requests if we published the custom event type before
-    publishLocalContactPoints();
 
     gossip.registerSyncRequestHandler(CONTACT_POINTS_EVENT_TYPE, localContactPointsSycHandler);
     gossip.registerSyncRequestHandler(PARTITIONS_EVENT_TYPE, knownPartitionsSyncHandler);
@@ -153,13 +148,12 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
   private class ContactPointsChangeListener implements GossipCustomEventListener {
     @Override
-    public void onEvent(SocketAddress sender, DirectBuffer payload) {
-      final SocketAddress senderCopy = new SocketAddress(sender);
+    public void onEvent(int senderId, DirectBuffer payload) {
       final DirectBuffer payloadCopy = BufferUtil.cloneBuffer(payload);
 
       actor.run(
           () -> {
-            LOG.trace("Received API event from member {}.", senderCopy);
+            LOG.trace("Received API event from member {}.", senderId);
 
             final NodeInfo newMember = readNodeInfo(0, payloadCopy);
             final boolean memberAdded = topology.addMember(newMember);
@@ -178,7 +172,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
     @Override
     public void onRemove(Member member) {
-      final NodeInfo topologyMember = topology.getMemberByManagementApi(member.getAddress());
+      final NodeInfo topologyMember = topology.getMember(member.getId());
       if (topologyMember != null) {
         topology.removeMember(topologyMember);
         notifyMemberRemoved(topologyMember);
@@ -188,19 +182,18 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
   private class PartitionChangeListener implements GossipCustomEventListener {
     @Override
-    public void onEvent(SocketAddress sender, DirectBuffer payload) {
-      final SocketAddress senderCopy = new SocketAddress(sender);
+    public void onEvent(int senderId, DirectBuffer payload) {
       final DirectBuffer payloadCopy = BufferUtil.cloneBuffer(payload);
 
       actor.run(
           () -> {
-            final NodeInfo member = topology.getMemberByManagementApi(senderCopy);
+            final NodeInfo member = topology.getMember(senderId);
 
             if (member != null) {
               readPartitions(payloadCopy, 0, member, TopologyManagerImpl.this);
-              LOG.trace("Received raft state change event for member {} {}", senderCopy, member);
+              LOG.trace("Received raft state change event for member {} {}", senderId, member);
             } else {
-              LOG.trace("Received raft state change event for unknown member {}", senderCopy);
+              LOG.trace("Received raft state change event for unknown member {}", senderId);
             }
           });
     }
@@ -217,7 +210,7 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
             for (NodeInfo member : topology.getMembers()) {
               final int length = writeNodeInfo(member, writeBuffer, 0);
-              request.addPayload(member.getManagementApiAddress(), writeBuffer, 0, length);
+              request.addPayload(member.getNodeId(), writeBuffer, 0, length);
             }
 
             LOG.trace("Send API sync response.");
@@ -236,19 +229,12 @@ public class TopologyManagerImpl extends Actor implements TopologyManager, RaftS
 
             for (NodeInfo member : topology.getMembers()) {
               final int length = writePartitions(member, writeBuffer, 0);
-              request.addPayload(member.getManagementApiAddress(), writeBuffer, 0, length);
+              request.addPayload(member.getNodeId(), writeBuffer, 0, length);
             }
 
             LOG.trace("Send RAFT state sync response.");
           });
     }
-  }
-
-  private void publishLocalContactPoints() {
-    final MutableDirectBuffer eventBuffer = new ExpandableArrayBuffer();
-    final int eventLength = writeNodeInfo(topology.getLocal(), eventBuffer, 0);
-
-    gossip.publishEvent(CONTACT_POINTS_EVENT_TYPE, eventBuffer, 0, eventLength);
   }
 
   private void publishLocalPartitions() {

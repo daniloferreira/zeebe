@@ -156,19 +156,6 @@ public class GossipJoinTest {
   }
 
   @Test
-  public void shouldJoinIfOneContactPointIsAvailable() {
-    // given
-    cluster.interruptConnectionBetween(gossip1, gossip3);
-
-    // when
-    gossip3.join(gossip1, gossip2).join();
-
-    // then
-    assertThat(gossip2.receivedMembershipEvent(MembershipEventType.JOIN, gossip3)).isTrue();
-    assertThat(gossip1.receivedMembershipEvent(MembershipEventType.JOIN, gossip3)).isFalse();
-  }
-
-  @Test
   public void shouldJoinWithMultipleContactPoints() {
     // given
     gossip2.join(gossip1).join();
