@@ -138,12 +138,8 @@ public class ClientTransport implements AutoCloseable {
     }
   }
 
-  public RemoteAddress getRemoteAddress(SocketAddress addr) {
+  private RemoteAddress getRemoteAddress(SocketAddress addr) {
     return remoteAddressList.getByAddress(addr);
-  }
-
-  public RemoteAddress getRemoteAddress(int streamId) {
-    return remoteAddressList.getByStreamId(streamId);
   }
 
   /**
