@@ -71,14 +71,6 @@ public class ClientTransport implements AutoCloseable {
   }
 
   /**
-   * Signals that the remote is no longer in use for the time being. A transport channel will no
-   * longer be managed. A remote address is reactivated when the endpoint is registered again.
-   */
-  public void deactivateRemoteAddress(RemoteAddress remote) {
-    remoteAddressList.deactivate(remote);
-  }
-
-  /**
    * Signals that the remote is no longer used and that the stream should not be reused on
    * reactivation. That means, when the endpoint is registered again, it is assigned a different
    * stream id (=> a new remote address is returned).
