@@ -15,16 +15,15 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker;
+package io.zeebe.broker.exporter.util;
 
-import io.zeebe.util.ZbLogger;
-import org.slf4j.Logger;
+import io.zeebe.exporter.record.Record;
+import io.zeebe.exporter.spi.Exporter;
 
-public class Loggers {
-  public static final Logger CLUSTERING_LOGGER = new ZbLogger("io.zeebe.broker.clustering");
-  public static final Logger SERVICES_LOGGER = new ZbLogger("io.zeebe.broker.services");
-  public static final Logger SYSTEM_LOGGER = new ZbLogger("io.zeebe.broker.system");
-  public static final Logger TRANSPORT_LOGGER = new ZbLogger("io.zeebe.broker.transport");
-  public static final Logger STREAM_PROCESSING = new ZbLogger("io.zeebe.broker.streamProcessing");
-  public static final Logger EXPORTER_LOGGER = new ZbLogger("io.zeebe.broker.exporter");
+/** Simple exported meant to be embedded into a JAR for testing */
+public class TestJarExporter implements Exporter {
+  public static final String FOO = "bar";
+
+  @Override
+  public void export(Record record) {}
 }

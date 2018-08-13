@@ -15,16 +15,20 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.zeebe.broker;
+package io.zeebe.broker.exporter.jar;
 
-import io.zeebe.util.ZbLogger;
-import org.slf4j.Logger;
+import java.io.IOException;
+import java.nio.file.Path;
 
-public class Loggers {
-  public static final Logger CLUSTERING_LOGGER = new ZbLogger("io.zeebe.broker.clustering");
-  public static final Logger SERVICES_LOGGER = new ZbLogger("io.zeebe.broker.services");
-  public static final Logger SYSTEM_LOGGER = new ZbLogger("io.zeebe.broker.system");
-  public static final Logger TRANSPORT_LOGGER = new ZbLogger("io.zeebe.broker.transport");
-  public static final Logger STREAM_PROCESSING = new ZbLogger("io.zeebe.broker.streamProcessing");
-  public static final Logger EXPORTER_LOGGER = new ZbLogger("io.zeebe.broker.exporter");
+public class ExporterJarLoadException extends IOException {
+  private static final String MESSAGE_FORMAT = "Cannot load JAR at [%s]: %s";
+  private static final long serialVersionUID = 1655276726721040696L;
+
+  public ExporterJarLoadException(final Path jarPath, final String reason) {
+    super(String.format(MESSAGE_FORMAT, jarPath, reason));
+  }
+
+  public ExporterJarLoadException(final Path jarPath, final String reason, final Throwable cause) {
+    super(String.format(MESSAGE_FORMAT, jarPath, reason), cause);
+  }
 }

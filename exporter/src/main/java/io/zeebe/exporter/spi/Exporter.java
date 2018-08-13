@@ -15,7 +15,6 @@
  */
 package io.zeebe.exporter.spi;
 
-import io.zeebe.exporter.context.Configuration;
 import io.zeebe.exporter.context.Context;
 import io.zeebe.exporter.context.Controller;
 import io.zeebe.exporter.record.Record;
@@ -32,9 +31,9 @@ public interface Exporter {
    * Use the provided configuration at this point to configure your exporter. This method is called
    * right before opening the exporter.
    *
-   * @param configuration the exporter configuration
+   * @param context the exporter context
    */
-  default void configure(Configuration configuration) {}
+  default void configure(final Context context) {}
 
   /**
    * Hook to perform any validation when the exporter is loaded. This method is called exactly once
@@ -44,11 +43,11 @@ public interface Exporter {
    *
    * <p>If an exception is thrown, or the method returns false, the broker will not start.
    *
-   * @param configuration parsed configuration
+   * @param context exporter context
    * @return true if valid, false otherwise
    * @throws Exception any validation exception
    */
-  default boolean validate(Configuration configuration) throws Exception {
+  default boolean validate(final Context context) throws Exception {
     return true;
   }
 
@@ -57,9 +56,9 @@ public interface Exporter {
    * the lifecycle of an exporter, and should be use to create, allocate or configure resources.
    * After this is called, records will be published to this exporter.
    *
-   * @param context specific context for this exporter
+   * @param controller execution controller for this exporter
    */
-  default void open(Context context) {}
+  default void open(final Controller controller) {}
 
   /**
    * Hook to perform any tear down. This is method is called exactly once at the end of the
@@ -78,5 +77,5 @@ public interface Exporter {
    *
    * @param record the record to export
    */
-  void export(Record record);
+  void export(final Record record);
 }

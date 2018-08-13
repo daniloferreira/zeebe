@@ -17,6 +17,7 @@
  */
 package io.zeebe.broker.system.configuration;
 
+import com.google.gson.annotations.SerializedName;
 import io.zeebe.gossip.GossipConfiguration;
 import io.zeebe.raft.RaftConfiguration;
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ public class BrokerCfg {
   private RaftConfiguration raft = new RaftConfiguration();
   private List<TopicCfg> topics = new ArrayList<>();
 
+  @SerializedName("exporter")
+  private List<ExporterCfg> exporters = new ArrayList<>();
+
   public void init(String brokerBase) {
     init(brokerBase, new Environment());
   }
@@ -44,6 +48,7 @@ public class BrokerCfg {
     threads.init(this, brokerBase, environment);
     metrics.init(this, brokerBase, environment);
     data.init(this, brokerBase, environment);
+    exporters.forEach(e -> e.init(this, brokerBase, environment));
   }
 
   public int getBootstrap() {
@@ -116,5 +121,13 @@ public class BrokerCfg {
 
   public void setTopics(List<TopicCfg> topics) {
     this.topics = topics;
+  }
+
+  public List<ExporterCfg> getExporters() {
+    return exporters;
+  }
+
+  public void setExporters(List<ExporterCfg> exporters) {
+    this.exporters = exporters;
   }
 }

@@ -22,6 +22,6 @@ public interface Context {
   /** @return pre-configured logger for this exporter */
   Logger getLogger();
 
-  /** @return controller for this exporter */
-  Controller getController();
+  /** @return configuration for this exporter */
+  Configuration getConfiguration();
 }
