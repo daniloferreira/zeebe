@@ -456,6 +456,7 @@ public class ClientTransportTest {
   @Test
   public void shouldReopenChannelAfterReactivation() {
     // given
+    final int nodeId = 123;
     buildServerTransport(
         b ->
             b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress())
@@ -464,18 +465,22 @@ public class ClientTransportTest {
     final RecordingChannelListener channelListener = new RecordingChannelListener();
     clientTransport.registerChannelListener(channelListener).join();
 
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
-    waitUntil(() -> channelListener.getOpenedConnections().contains(remote));
+    clientTransport.registerEndpoint(nodeId, SERVER_ADDRESS1);
+    waitUntil(
+        () ->
+            channelListener.getOpenedConnections().stream().anyMatch(this::containsServerAddress1));
 
-    clientTransport.deactivateRemoteAddress(remote);
+    clientTransport.deactivateEndpoint(nodeId);
     clientTransport.closeAllChannels().join();
 
     // when
-    clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    clientTransport.registerEndpoint(nodeId, SERVER_ADDRESS1);
 
     // then
     waitUntil(() -> channelListener.getOpenedConnections().size() >= 2);
-    assertThat(channelListener.getOpenedConnections()).contains(remote, remote);
+    assertThat(channelListener.getOpenedConnections())
+      .extracting("remote")
+      .contains(remote, remote);
   }
 
   @Test
