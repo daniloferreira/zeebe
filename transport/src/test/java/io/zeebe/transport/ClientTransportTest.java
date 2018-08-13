@@ -402,6 +402,7 @@ public class ClientTransportTest {
   @Test
   public void shouldNotCreateChannelsWhenRemoteAddressIsRetired() throws InterruptedException {
     // given
+    final int nodeId = 123;
     buildServerTransport(
         b ->
             b.bindAddress(SERVER_ADDRESS1.toInetSocketAddress())
@@ -410,16 +411,20 @@ public class ClientTransportTest {
     final RecordingChannelListener channelListener = new RecordingChannelListener();
     clientTransport.registerChannelListener(channelListener).join();
 
-    final RemoteAddress remote = clientTransport.registerRemoteAddress(SERVER_ADDRESS1);
+    clientTransport.registerEndpoint(nodeId, SERVER_ADDRESS1);
 
-    waitUntil(() -> channelListener.getOpenedConnections().contains(remote));
+    waitUntil(
+        () ->
+            channelListener.getOpenedConnections().stream().anyMatch(this::containsServerAddress1));
 
     // when
-    clientTransport.retireRemoteAddress(remote);
+    clientTransport.retireEndpoint(nodeId);
     clientTransport.closeAllChannels().join();
 
     // then
-    waitUntil(() -> channelListener.getClosedConnections().contains(remote));
+    waitUntil(
+        () ->
+            channelListener.getClosedConnections().stream().anyMatch(this::containsServerAddress1));
     Thread.sleep(1000L); // timeout for potential reconnection of channel
 
     // no new channel was connected

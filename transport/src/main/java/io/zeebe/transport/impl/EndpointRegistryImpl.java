@@ -99,10 +99,33 @@ public class EndpointRegistryImpl implements EndpointRegistry {
     }
   }
 
+  /**
+   * Remove the endpoint for the given node id. If an endpoint is set it will be retired on the
+   * transport so the channel can be closed. And the internal remote address become invalid.
+   *
+   * @param nodeId the id of the node for this endpoint
+   * @return the previous set socket address or null if non was set
+   */
+  @Override
+  public SocketAddress retire(int nodeId) {
+    final RemoteAddress remoteAddress = endpoints.remove(nodeId);
+    if (remoteAddress != null) {
+      return retireRemote(nodeId, remoteAddress);
+    } else {
+      return null;
+    }
+  }
+
   private SocketAddress deactivateRemote(int nodeId, RemoteAddress remoteAddress) {
     LOG.info(
         "Deactivating endpoint '{}' on node '{}' with address '{}'", name, nodeId, remoteAddress);
     remoteAddressList.deactivate(remoteAddress);
+    return remoteAddress.getAddress();
+  }
+
+  private SocketAddress retireRemote(int nodeId, RemoteAddress remoteAddress) {
+    LOG.info("Retiring endpoint '{}' on node '{}' with address '{}'", name, nodeId, remoteAddress);
+    remoteAddressList.retire(remoteAddress);
     return remoteAddress.getAddress();
   }
 }

@@ -24,4 +24,6 @@ public interface EndpointRegistry {
   SocketAddress setEndpoint(int nodeId, SocketAddress socketAddress);
 
   SocketAddress removeEndpoint(int nodeId);
+
+  SocketAddress retire(int nodeId);
 }

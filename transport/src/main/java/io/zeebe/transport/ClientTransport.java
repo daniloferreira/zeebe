@@ -61,6 +61,15 @@ public class ClientTransport implements AutoCloseable {
   }
 
   /**
+   * Signals that the endpoint is no longer used and that the stream should not be reused on
+   * reactivation. That means, when the endpoint is registered again, it is assigned a different
+   * stream id.
+   */
+  public void retireEndpoint(int nodeId) {
+    endpointRegistry.retire(nodeId);
+  }
+
+  /**
    * Resolve a socket address as a remote to which data can be sent. The return value identifies the
    * remote and remains stable throughout the lifetime of this {@link ClientTransport} object, i.e.
    * can be cached. Transport will make sure to keep an open channel to this remote until the
@@ -68,17 +77,6 @@ public class ClientTransport implements AutoCloseable {
    */
   public RemoteAddress registerRemoteAddress(SocketAddress addr) {
     return remoteAddressList.register(addr);
-  }
-
-  /**
-   * Signals that the remote is no longer used and that the stream should not be reused on
-   * reactivation. That means, when the endpoint is registered again, it is assigned a different
-   * stream id (=> a new remote address is returned).
-   *
-   * @param remote
-   */
-  public void retireRemoteAddress(RemoteAddress remote) {
-    remoteAddressList.retire(remote);
   }
 
   /**
