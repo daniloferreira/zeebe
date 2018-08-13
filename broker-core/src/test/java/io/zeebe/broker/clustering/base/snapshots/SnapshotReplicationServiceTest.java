@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 import io.zeebe.broker.clustering.api.ErrorResponse;
 import io.zeebe.broker.clustering.api.FetchSnapshotChunkRequest;
@@ -165,7 +164,6 @@ public class SnapshotReplicationServiceTest {
     actorSchedulerRule.waitForTimer(SnapshotReplicationService.ERROR_RETRY_INTERVAL);
 
     // then
-    verify(transport).registerRemoteAddress(newLeader.getManagementApiAddress());
     assertThat(output.getSentRequests().size()).isEqualTo(2);
     assertThat(output.getLastRequest().getTemplateId())
         .isEqualTo(ListSnapshotsRequestEncoder.TEMPLATE_ID);
@@ -221,7 +219,6 @@ public class SnapshotReplicationServiceTest {
     assertThat(output.getSentRequests().size()).isEqualTo(2);
     final Request lastRequest = output.getLastRequest();
     assertThat(lastRequest.getTemplateId()).isEqualTo(ListSnapshotsRequestEncoder.TEMPLATE_ID);
-    verify(transport).registerRemoteAddress(newLeader.getManagementApiAddress());
   }
 
   @Test

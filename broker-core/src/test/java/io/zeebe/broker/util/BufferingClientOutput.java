@@ -53,7 +53,7 @@ public class BufferingClientOutput implements ClientOutput {
 
   @Override
   public ActorFuture<ClientResponse> sendRequest(int nodeId, BufferWriter writer) {
-    throw new UnsupportedOperationException("not yet implemented");
+    return sendRequest(null, writer, defaultTimeout);
   }
 
   @Override
@@ -67,7 +67,7 @@ public class BufferingClientOutput implements ClientOutput {
   @Override
   public ActorFuture<ClientResponse> sendRequest(
       int nodeId, BufferWriter writer, Duration timeout) {
-    throw new UnsupportedOperationException("not yet implemented");
+    return sendRequest(null, writer, timeout);
   }
 
   @Override

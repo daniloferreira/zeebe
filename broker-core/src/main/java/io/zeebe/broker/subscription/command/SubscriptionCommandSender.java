@@ -26,8 +26,6 @@ import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.impl.SubscriptionUtil;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.SocketAddress;
 import io.zeebe.transport.TransportMessage;
 import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorControl;
@@ -35,10 +33,12 @@ import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.time.Duration;
 import org.agrona.DirectBuffer;
-import org.agrona.collections.Int2ObjectHashMap;
+import org.agrona.collections.Int2IntHashMap;
 import org.agrona.collections.IntArrayList;
 
 public class SubscriptionCommandSender implements TopologyPartitionListener {
+
+  private static final int NO_LEADER = -1;
 
   private final FetchCreatedTopicsRequest fetchCreatedTopicsRequest =
       new FetchCreatedTopicsRequest();
@@ -55,8 +55,8 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
 
   private final TransportMessage subscriptionMessage = new TransportMessage();
 
-  private final Int2ObjectHashMap<RemoteAddress> partitionLeaders = new Int2ObjectHashMap<>();
-  private volatile RemoteAddress systemPartitionLeader;
+  private final Int2IntHashMap partitionLeaders = new Int2IntHashMap(NO_LEADER);
+  private volatile Integer systemPartitionLeaderId;
 
   private final ActorControl actor;
   private final ClientTransport managementClient;
@@ -130,16 +130,13 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   private boolean sendSubscriptipnCommand(
       final int receiverPartitionId, final BufferWriter command) {
 
-    final RemoteAddress partitionLeader = partitionLeaders.get(receiverPartitionId);
-    if (partitionLeader == null) {
+    final int partitionLeader = partitionLeaders.get(receiverPartitionId);
+    if (partitionLeader == NO_LEADER) {
       // retry when no leader is known
       return false;
     }
 
-    subscriptionMessage.remoteAddress(partitionLeader);
-    subscriptionMessage.writer(command);
-
-    return subscriptionClient.getOutput().sendMessage(subscriptionMessage);
+    return subscriptionClient.getOutput().sendMessage(partitionLeader, command);
   }
 
   public boolean hasPartitionIds() {
@@ -167,8 +164,8 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   private ActorFuture<ClientResponse> sendFetchCreatedTopicsRequest() {
     return managementClient
         .getOutput()
-        .sendRequestWithRetry(
-            () -> systemPartitionLeader,
+        .sendRequestToNodeWithRetry(
+            () -> systemPartitionLeaderId,
             b -> !fetchCreatedTopicsResponse.tryWrap(b),
             fetchCreatedTopicsRequest,
             Duration.ofSeconds(15));
@@ -200,23 +197,16 @@ public class SubscriptionCommandSender implements TopologyPartitionListener {
   }
 
   private void updateSystemPartitionLeader(NodeInfo member) {
-    final RemoteAddress currentLeader = systemPartitionLeader;
-
-    final SocketAddress managementApiAddress = member.getManagementApiAddress();
-    if (currentLeader == null || !currentLeader.getAddress().equals(managementApiAddress)) {
-      systemPartitionLeader = managementClient.registerRemoteAddress(managementApiAddress);
-    }
+    systemPartitionLeaderId = member.getNodeId();
   }
 
   private void updatePartitionLeader(PartitionInfo partitionInfo, NodeInfo member) {
     actor.submit(
         () -> {
-          final RemoteAddress currentLeader = partitionLeaders.get(partitionInfo.getPartitionId());
+          final int currentLeader = partitionLeaders.get(partitionInfo.getPartitionId());
 
-          final SocketAddress subscriptionApiAddress = member.getSubscriptionApiAddress();
-          if (currentLeader == null || !currentLeader.getAddress().equals(subscriptionApiAddress)) {
-            final RemoteAddress newLeader =
-                subscriptionClient.registerRemoteAddress(subscriptionApiAddress);
+          final int newLeader = member.getNodeId();
+          if (currentLeader == NO_LEADER || currentLeader != newLeader) {
             partitionLeaders.put(partitionInfo.getPartitionId(), newLeader);
           }
         });

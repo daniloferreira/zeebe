@@ -32,8 +32,6 @@ import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.model.bpmn.BpmnModelInstance;
 import io.zeebe.transport.ClientResponse;
 import io.zeebe.transport.ClientTransport;
-import io.zeebe.transport.RemoteAddress;
-import io.zeebe.transport.SocketAddress;
 import io.zeebe.util.buffer.BufferUtil;
 import io.zeebe.util.sched.clock.ActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
@@ -64,7 +62,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
   private final BpmnTransformer transformer = new BpmnTransformer();
 
-  private volatile RemoteAddress defaultTopicLeaderAddress;
+  private volatile Integer defaultTopicLeaderId;
 
   public WorkflowCache(ClientTransport clientTransport, TopologyManager topologyManager) {
     this.clientTransport = clientTransport;
@@ -81,7 +79,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestWithRetry(
+        .sendRequestToNodeWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 
@@ -91,7 +89,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestWithRetry(
+        .sendRequestToNodeWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 
@@ -101,7 +99,7 @@ public class WorkflowCache implements TopologyPartitionListener {
 
     return clientTransport
         .getOutput()
-        .sendRequestWithRetry(
+        .sendRequestToNodeWithRetry(
             this::systemTopicLeader, this::checkResponse, fetchRequest, FETCH_WORKFLOW_TIMEOUT);
   }
 
@@ -169,8 +167,8 @@ public class WorkflowCache implements TopologyPartitionListener {
     return deployedWorkflow;
   }
 
-  private RemoteAddress systemTopicLeader() {
-    return defaultTopicLeaderAddress;
+  private Integer systemTopicLeader() {
+    return defaultTopicLeaderId;
   }
 
   public DeployedWorkflow getLatestWorkflowVersionByProcessId(DirectBuffer processId) {
@@ -205,13 +203,12 @@ public class WorkflowCache implements TopologyPartitionListener {
 
   @Override
   public void onPartitionUpdated(PartitionInfo partitionInfo, NodeInfo member) {
-    final RemoteAddress currentLeader = defaultTopicLeaderAddress;
+    final Integer currentLeader = defaultTopicLeaderId;
 
     if (partitionInfo.getPartitionId() == DEPLOYMENT_PARTITION) {
       if (member.getLeaders().contains(partitionInfo)) {
-        final SocketAddress managementApiAddress = member.getManagementApiAddress();
-        if (currentLeader == null || currentLeader.getAddress().equals(managementApiAddress)) {
-          defaultTopicLeaderAddress = clientTransport.registerRemoteAddress(managementApiAddress);
+        if (currentLeader == null || !currentLeader.equals(member.getNodeId())) {
+          defaultTopicLeaderId = member.getNodeId();
         }
       }
     }
