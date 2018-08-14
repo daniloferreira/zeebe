@@ -66,11 +66,14 @@ public class MessageSubscriptionDataStore extends JsonSnapshotSupport<MessageSub
 
   public static class MessageSubscription {
 
-    private final int workflowInstancePartitionId;
-    private final long workflowInstanceKey;
-    private final long activityInstanceKey;
-    private final String messageName;
-    private final String correlationKey;
+    private int workflowInstancePartitionId;
+    private long workflowInstanceKey;
+    private long activityInstanceKey;
+    private String messageName;
+    private String correlationKey;
+
+    // JSON deserializtion
+    public MessageSubscription() {}
 
     public MessageSubscription(
         int workflowInstancePartitionId,
@@ -103,6 +106,26 @@ public class MessageSubscriptionDataStore extends JsonSnapshotSupport<MessageSub
 
     public String getCorrelationKey() {
       return correlationKey;
+    }
+
+    public void setWorkflowInstancePartitionId(int workflowInstancePartitionId) {
+      this.workflowInstancePartitionId = workflowInstancePartitionId;
+    }
+
+    public void setWorkflowInstanceKey(long workflowInstanceKey) {
+      this.workflowInstanceKey = workflowInstanceKey;
+    }
+
+    public void setActivityInstanceKey(long activityInstanceKey) {
+      this.activityInstanceKey = activityInstanceKey;
+    }
+
+    public void setMessageName(String messageName) {
+      this.messageName = messageName;
+    }
+
+    public void setCorrelationKey(String correlationKey) {
+      this.correlationKey = correlationKey;
     }
   }
 }

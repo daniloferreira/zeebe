@@ -77,14 +77,17 @@ public class MessageDataStore extends JsonSnapshotSupport<MessageData> {
   }
 
   public static class Message {
-    private final String name;
-    private final String correlationKey;
-    private final byte[] payload;
-    private final String id;
-    private final long timeToLive;
-    private final long deadline;
+    private String name;
+    private String correlationKey;
+    private byte[] payload;
+    private String id;
+    private long timeToLive;
+    private long deadline;
 
     private long key;
+
+    // JSON deserialization
+    public Message() {}
 
     public Message(String name, String correlationKey, long timeToLive, byte[] payload, String id) {
       this.name = name;
@@ -125,6 +128,30 @@ public class MessageDataStore extends JsonSnapshotSupport<MessageData> {
 
     public void setKey(long key) {
       this.key = key;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public void setCorrelationKey(String correlationKey) {
+      this.correlationKey = correlationKey;
+    }
+
+    public void setPayload(byte[] payload) {
+      this.payload = payload;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public void setTimeToLive(long timeToLive) {
+      this.timeToLive = timeToLive;
+    }
+
+    public void setDeadline(long deadline) {
+      this.deadline = deadline;
     }
   }
 }
