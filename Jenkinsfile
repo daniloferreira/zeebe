@@ -62,7 +62,6 @@ mvn -B -T 1C clean com.mycila:license-maven-plugin:check com.coveo:fmt-maven-plu
                 stage('1 - Java Tests') {
                     steps {
                         container('maven') {
-                            sh 'mvn -B -T 2 verify -P skip-unstable-ci,retry-tests,parallel-tests'
                             // MaxRAMFraction = LIMITS_CPU+1 because there are LIMITS_CPU surefire threads + one maven thread
                             sh '''\
 export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -XX:MaxRAMFraction=$((LIMITS_CPU+1))"
