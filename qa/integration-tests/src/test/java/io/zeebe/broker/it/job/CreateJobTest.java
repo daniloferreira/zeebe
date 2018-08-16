@@ -38,7 +38,7 @@ public class CreateJobTest {
   public EmbeddedBrokerRule brokerRule = new EmbeddedBrokerRule();
 
   public ClientRule clientRule =
-      new ClientRule(builder -> builder.requestTimeout(Duration.ofSeconds(3)));
+      new ClientRule(brokerRule, builder -> builder.requestTimeout(Duration.ofSeconds(3)));
 
   @Rule public RuleChain ruleChain = RuleChain.outerRule(brokerRule).around(clientRule);
 

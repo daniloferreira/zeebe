@@ -56,7 +56,6 @@ public class ClusteringRule extends ExternalResource {
   public static final String BROKER_1_TOML = "zeebe.cluster.1.cfg.toml";
   public static final String BROKER_2_TOML = "zeebe.cluster.2.cfg.toml";
   public static final String BROKER_3_TOML = "zeebe.cluster.3.cfg.toml";
-  public static final String BROKER_4_TOML = "zeebe.cluster.4.cfg.toml";
 
   // internal
   private ZeebeClient zeebeClient;

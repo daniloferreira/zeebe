@@ -46,20 +46,22 @@ public class ClientRule extends ExternalResource {
   private ControlledActorClock actorClock = new ControlledActorClock();
 
   public ClientRule(EmbeddedBrokerRule brokerRule) {
+    this(brokerRule, config -> {});
+  }
+
+  public ClientRule(EmbeddedBrokerRule brokerRule, Consumer<ZeebeClientBuilder> configurator) {
     this(
         config -> {
           config.brokerContactPoint(brokerRule.getClientAddress().toString());
+          configurator.accept(config);
         });
   }
 
   public ClientRule(ClusteringRule clusteringRule) {
-    this(
-        config -> {
-          config.brokerContactPoint(clusteringRule.getClientAddress().toString());
-        });
+    this(config -> config.brokerContactPoint(clusteringRule.getClientAddress().toString()));
   }
 
-  public ClientRule(final Consumer<ZeebeClientBuilder> configurator) {
+  private ClientRule(final Consumer<ZeebeClientBuilder> configurator) {
     this.configurator = configurator;
   }
 

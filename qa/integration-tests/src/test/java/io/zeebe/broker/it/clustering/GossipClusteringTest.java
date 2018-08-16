@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.zeebe.broker.it.ClientRule;
 import io.zeebe.gateway.api.commands.BrokerInfo;
-import io.zeebe.test.util.AutoCloseableRule;
 import io.zeebe.transport.SocketAddress;
 import java.util.List;
 import org.junit.Rule;
@@ -31,14 +30,13 @@ import org.junit.rules.Timeout;
 public class GossipClusteringTest {
   private static final int PARTITION_COUNT = 3;
 
-  public AutoCloseableRule closeables = new AutoCloseableRule();
   public Timeout testTimeout = Timeout.seconds(90);
   public ClusteringRule clusteringRule = new ClusteringRule();
   public ClientRule clientRule = new ClientRule(clusteringRule);
 
   @Rule
   public RuleChain ruleChain =
-      RuleChain.outerRule(closeables).around(testTimeout).around(clusteringRule).around(clientRule);
+      RuleChain.outerRule(testTimeout).around(clusteringRule).around(clientRule);
 
   @Test
   public void shouldStartCluster() {
