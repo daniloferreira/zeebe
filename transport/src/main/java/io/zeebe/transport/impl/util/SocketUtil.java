@@ -26,7 +26,7 @@ public class SocketUtil {
 
   public static final String DEFAULT_HOST = "localhost";
   public static final int BASE_PORT = 25600;
-  public static final int RANGE_SIZE = 1000;
+  public static final int RANGE_SIZE = 25;
 
   private static final PortRange PORT_RANGE;
 

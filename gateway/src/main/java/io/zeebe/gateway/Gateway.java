@@ -65,7 +65,7 @@ public class Gateway {
     try {
       gateway.listenAndServe();
     } catch (final Exception e) {
-      LOG.error("Gateway failed ", e);
+      LOG.error("Gateway failed to start: {}", gateway, e);
     } finally {
       gateway.stop();
     }
@@ -80,7 +80,7 @@ public class Gateway {
             .build();
 
     server.start();
-    LOG.info("Gateway started at port: {}", port);
+    LOG.info("Gateway started: {}", this);
   }
 
   public void listenAndServe() throws InterruptedException, IOException {
@@ -96,7 +96,18 @@ public class Gateway {
 
     if (server != null && !server.isShutdown()) {
       server.shutdown();
-      server = null;
+      try {
+        server.awaitTermination();
+      } catch (InterruptedException e) {
+        LOG.error("Failed to await termination of gateway", e);
+      } finally {
+        server = null;
+      }
     }
+  }
+
+  @Override
+  public String toString() {
+    return "Gateway{" + "host='" + host + '\'' + ", port=" + port + '}';
   }
 }

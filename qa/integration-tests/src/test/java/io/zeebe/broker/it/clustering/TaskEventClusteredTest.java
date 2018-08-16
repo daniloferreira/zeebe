@@ -32,13 +32,13 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 
 public class TaskEventClusteredTest {
-  public ClientRule clientRule = new ClientRule();
   public AutoCloseableRule closeables = new AutoCloseableRule();
-  public ClusteringRule clusteringRule = new ClusteringRule(closeables, clientRule);
+  public ClusteringRule clusteringRule = new ClusteringRule();
+  public ClientRule clientRule = new ClientRule(clusteringRule);
 
   @Rule
   public RuleChain ruleChain =
-      RuleChain.outerRule(closeables).around(clientRule).around(clusteringRule);
+      RuleChain.outerRule(closeables).around(clusteringRule).around(clientRule);
 
   @Test
   @Ignore("https://github.com/zeebe-io/zeebe/issues/844")

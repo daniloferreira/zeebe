@@ -17,8 +17,9 @@ package io.zeebe.broker.it;
 
 import static io.zeebe.test.util.TestUtil.doRepeatedly;
 
-import io.zeebe.gateway.ClientProperties;
+import io.zeebe.broker.it.clustering.ClusteringRule;
 import io.zeebe.gateway.ZeebeClient;
+import io.zeebe.gateway.ZeebeClientBuilder;
 import io.zeebe.gateway.api.clients.JobClient;
 import io.zeebe.gateway.api.clients.TopicClient;
 import io.zeebe.gateway.api.clients.WorkflowClient;
@@ -33,40 +34,40 @@ import io.zeebe.util.sched.clock.ControlledActorClock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.junit.rules.ExternalResource;
 
 public class ClientRule extends ExternalResource {
-  protected final Properties properties;
+
+  private final Consumer<ZeebeClientBuilder> configurator;
 
   protected ZeebeClient client;
   private ControlledActorClock actorClock = new ControlledActorClock();
 
-  public ClientRule() {
-    this(Properties::new);
-  }
-
-  public ClientRule(final String contactPoint) {
+  public ClientRule(EmbeddedBrokerRule brokerRule) {
     this(
-        () -> {
-          final Properties properties = new Properties();
-          properties.put(ClientProperties.BROKER_CONTACTPOINT, contactPoint);
-          return properties;
+        config -> {
+          config.brokerContactPoint(brokerRule.getClientAddress().toString());
         });
   }
 
-  public ClientRule(final Supplier<Properties> propertiesProvider) {
-    this.properties = propertiesProvider.get();
+  public ClientRule(ClusteringRule clusteringRule) {
+    this(
+        config -> {
+          config.brokerContactPoint(clusteringRule.getClientAddress().toString());
+        });
+  }
+
+  public ClientRule(final Consumer<ZeebeClientBuilder> configurator) {
+    this.configurator = configurator;
   }
 
   @Override
   protected void before() {
-    client =
-        ((ZeebeClientBuilderImpl) ZeebeClient.newClientBuilder().withProperties(properties))
-            .setActorClock(actorClock)
-            .build();
+    final ZeebeClientBuilderImpl builder = (ZeebeClientBuilderImpl) ZeebeClient.newClientBuilder();
+    configurator.accept(builder);
+    client = builder.setActorClock(actorClock).build();
   }
 
   @Override
