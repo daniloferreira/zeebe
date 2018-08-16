@@ -33,7 +33,10 @@ public class ZeebeClientTest {
 
   @Before
   public void setUp() {
-    client = ZeebeClient.newClient();
+    client =
+        ZeebeClient.newClientBuilder()
+            .brokerContactPoint(rule.getClientAddress().toString())
+            .build();
   }
 
   @Test
