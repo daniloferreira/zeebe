@@ -162,14 +162,17 @@ public class EmbeddedBrokerRule extends ExternalResource {
   }
 
   public void startBroker() {
-    try (InputStream configStream = configSupplier.get()) {
-      brokerCfg = TomlConfigurationReader.read(configStream);
-      configurator.accept(brokerCfg);
-      assignSocketAddresses(brokerCfg);
-      broker = new Broker(brokerCfg, newTemporaryFolder.getAbsolutePath(), controlledActorClock);
-    } catch (final IOException e) {
-      throw new RuntimeException("Unable to open configuration", e);
+    if (brokerCfg == null) {
+      try (InputStream configStream = configSupplier.get()) {
+        brokerCfg = TomlConfigurationReader.read(configStream);
+        configurator.accept(brokerCfg);
+        assignSocketAddresses(brokerCfg);
+      } catch (final IOException e) {
+        throw new RuntimeException("Unable to open configuration", e);
+      }
     }
+
+    broker = new Broker(brokerCfg, newTemporaryFolder.getAbsolutePath(), controlledActorClock);
 
     final ServiceContainer serviceContainer = broker.getBrokerContext().getServiceContainer();
 
