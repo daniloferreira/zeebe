@@ -1,7 +1,5 @@
 // vim: set filetype=groovy:
 
-def jdkVersion = 'jdk-8-latest'
-def mavenVersion = 'maven-3.5-latest'
 def mavenSettingsConfig = 'camunda-maven-settings'
 
 def joinJmhResults = '''\
@@ -28,7 +26,14 @@ make install-deps test
 }
 
 pipeline {
-    agent { node { label 'ubuntu-large' } }
+    agent {
+        kubernetes {
+            cloud 'zeebe-ci'
+            label "zeebe-ci-build_${env.JOB_BASE_NAME.replaceAll("%2F", "-").take(20)}-${env.BUILD_ID}"
+            defaultContainer 'jnlp'
+            yamlFile '.ci/podSpecs/builderAgent.yml'
+        }
+    }
 
     options {
         buildDiscarder(logRotator(daysToKeepStr:'14', numToKeepStr:'10'))
@@ -39,11 +44,15 @@ pipeline {
     stages {
         stage('Install') {
             steps {
-                withMaven(jdk: jdkVersion, maven: mavenVersion, mavenSettingsConfig: mavenSettingsConfig) {
-                    sh 'mvn -B -T 1C clean com.mycila:license-maven-plugin:check com.coveo:fmt-maven-plugin:check install -DskipTests'
-                }
+                container('maven') {
+                    // MaxRAMFraction = LIMITS_CPU because there are only maven build threads
+                    sh '''\
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -XX:MaxRAMFraction=$((LIMITS_CPU))"
+mvn -B -T 1C clean com.mycila:license-maven-plugin:check com.coveo:fmt-maven-plugin:check install -DskipTests
+'''
 
-                stash name: "zeebe-dist", includes: "dist/target/zeebe-broker/**/*"
+                    stash name: "zeebe-dist", includes: "dist/target/zeebe-broker/**/*"
+                }
             }
         }
 
@@ -52,8 +61,13 @@ pipeline {
             parallel {
                 stage('1 - Java Tests') {
                     steps {
-                        withMaven(jdk: jdkVersion, maven: mavenVersion, mavenSettingsConfig: mavenSettingsConfig) {
+                        container('maven') {
                             sh 'mvn -B -T 2 verify -P skip-unstable-ci,retry-tests,parallel-tests'
+                            // MaxRAMFraction = LIMITS_CPU+1 because there are LIMITS_CPU surefire threads + one maven thread
+                            sh '''\
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -XX:MaxRAMFraction=$((LIMITS_CPU+1))"
+mvn -B -T 1C verify -P skip-unstable-ci,retry-tests,parallel-tests
+'''
                         }
                     }
                     post {
@@ -62,50 +76,6 @@ pipeline {
                         }
                     }
                 }
-
-                stage('2 - JMH') {
-                    // delete this line to also run JMH on feature branch
-                    when { anyOf { branch 'master'; branch 'develop' } }
-                    agent { node { label 'ubuntu-large' } }
-
-                    steps {
-                        withMaven(jdk: jdkVersion, maven: mavenVersion, mavenSettingsConfig: mavenSettingsConfig) {
-                            sh 'mvn -B integration-test -DskipTests -P jmh'
-                        }
-                    }
-
-                    post {
-                        success {
-                            sh joinJmhResults
-                            jmhReport 'target/jmh-result.json'
-                        }
-                    }
-                }
-
-                stage('3 - Go Tests') {
-                    agent { node { label 'ubuntu' } }
-
-                    steps {
-                        unstash name: "zeebe-dist"
-                        sh goTests()
-                    }
-                }
-            }
-        }
-
-        stage('Deploy') {
-            when { branch 'develop' }
-            steps {
-                withMaven(jdk: jdkVersion, maven: mavenVersion, mavenSettingsConfig: mavenSettingsConfig) {
-                    sh 'mvn -B -T 1C generate-sources source:jar javadoc:jar deploy -DskipTests'
-                }
-            }
-        }
-
-        stage('Trigger Performance Tests') {
-            when { branch 'develop' }
-            steps {
-                build job: 'zeebe-cluster-performance-tests', wait: false
             }
         }
     }

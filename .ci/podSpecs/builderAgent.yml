@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    agent: zeebe-ci-build
+spec:
+  nodeSelector:
+    cloud.google.com/gke-nodepool: slaves
+  containers:
+    - name: maven
+      image: maven:3.5.3-jdk-8
+      command: ["cat"]
+      tty: true
+      env:
+        - name: LIMITS_CPU
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: JAVA_TOOL_OPTIONS
+          value: |
+            -XX:+UnlockExperimentalVMOptions
+            -XX:+UseCGroupMemoryLimitForHeap
+      resources:
+        limits:
+          cpu: 24
+          memory: 96Gi
+        requests:
+          cpu: 24
+          memory: 96Gi
