@@ -110,7 +110,7 @@ public class EmbeddedBrokerRule extends ExternalResource {
   }
 
   public SocketAddress getClientAddress() {
-    return brokerCfg.getNetwork().getClient().toSocketAddress();
+    return brokerCfg.getNetwork().getGateway().toSocketAddress();
   }
 
   public Broker getBroker() {
@@ -139,13 +139,16 @@ public class EmbeddedBrokerRule extends ExternalResource {
       brokerBase = Files.newTemporaryFolder();
     }
 
-    try (InputStream configStream = configSupplier.get()) {
-      brokerCfg = TomlConfigurationReader.read(configStream);
-      assignSocketAddresses(brokerCfg);
-      broker = new Broker(brokerCfg, brokerBase.getAbsolutePath(), controlledActorClock);
-    } catch (final IOException e) {
-      throw new RuntimeException("Unable to open configuration", e);
+    if (brokerCfg == null) {
+      try (InputStream configStream = configSupplier.get()) {
+        brokerCfg = TomlConfigurationReader.read(configStream);
+        assignSocketAddresses(brokerCfg);
+      } catch (final IOException e) {
+        throw new RuntimeException("Unable to open configuration", e);
+      }
     }
+
+    broker = new Broker(brokerCfg, brokerBase.getAbsolutePath(), controlledActorClock);
 
     final ServiceContainer serviceContainer = broker.getBrokerContext().getServiceContainer();
 
